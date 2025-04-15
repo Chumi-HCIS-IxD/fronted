@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "340459559746",
+    "project_id": "chumi-2d075",
+    "storage_bucket": "chumi-2d075.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:340459559746:android:5614cebbe53a79705bc6db",
+        "android_client_info": {
+          "package_name": "com.example.flutter_frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmgPdC3dJFjenMfzG4boZSmzwrodubbeQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
