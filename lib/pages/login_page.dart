@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../auth/firebase_auth_service.dart';
+import '../multiple_choice/quiz_game_page.dart';
 import 'register_page.dart';
 import 'home_page.dart';
 
@@ -72,6 +73,19 @@ class LoginPage extends StatelessWidget {
                   minimumSize: const Size(double.infinity, 50)),
               child: const Text("Sign in"),
             ),
+            
+            //測試選擇題遊戲頁面用
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const QuizGamePage()),
+                );
+              },
+              child: const Text('開始選擇題小遊戲'),
+            ),
+            //新增的測試程式碼到這裡
+
             const SizedBox(height: 20),
             GestureDetector(
               onTap: () {
@@ -81,6 +95,7 @@ class LoginPage extends StatelessWidget {
               child: const Text("還沒有帳號？點我註冊",
                   style: TextStyle(color: Colors.blue)),
             )
+
           ],
         ),
       ),
