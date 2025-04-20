@@ -27,7 +27,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace = "com.example.flutter_frontend"
+    namespace = "com.example.chumi_frontend_fixed"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

@@ -25,11 +25,10 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        return ios;
-        // throw UnsupportedError(
-        //   'DefaultFirebaseOptions have not been configured for macos - '
-        //   'you can reconfigure this by running the FlutterFire CLI again.',
-        // );
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.windows:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for windows - '
@@ -48,14 +47,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBwO48RiXQEIngJ6LnA2u9G4ztrgMUVGOQ',
-    appId: '1:340459559746:ios:bc784329a63370095bc6db',
+    apiKey: 'AIzaSyBX40GW4-0W2C5WBdSMb6aoje8Io9z4Y0U',
+    appId: '1:340459559746:web:9c1e287d3943c3315bc6db',
     messagingSenderId: '340459559746',
     projectId: 'chumi-2d075',
     authDomain: 'chumi-2d075.firebaseapp.com',
     storageBucket: 'chumi-2d075.firebasestorage.app',
     measurementId: 'G-G9Q34RWK05',
-    iosBundleId: 'com.example.flutterFrontend',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

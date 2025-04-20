@@ -1,78 +1,70 @@
-// lib/pages/profile_drawer.dart
 import 'package:flutter/material.dart';
+import '../services/auth_api_service.dart';
+import 'login_page.dart';
 
-class ProfileDrawer extends StatelessWidget {
-  const ProfileDrawer({Key? key}) : super(key: key);
+class ProfileDrawer extends StatefulWidget {
+  final AuthApiService authService;
+
+  const ProfileDrawer({super.key, required this.authService});
+
+  @override
+  State<ProfileDrawer> createState() => _ProfileDrawerState();
+}
+
+class _ProfileDrawerState extends State<ProfileDrawer> {
+  Map<String, dynamic>? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await widget.authService.fetchUserProfile();
+    setState(() => _profile = profile);
+  }
 
   @override
   Widget build(BuildContext context) {
-// TODO: replace with real user data
-    const userName = 'Name';
-    const className = '三年六班';
-    const teacherName = '王順仁';
-    const description = '一些說明...';
-    const gender = '女';
-    const birthday = '99/10/22';
-    const studentId = 'P36134084';
-    const email = 'P36134084@gmail.com';
-    const lastLogin = '2025/04/06 15:06';
     return Drawer(
       child: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with avatar and name
-            const SizedBox(height: 24),
-            CircleAvatar(
-              radius: 48,
-              backgroundColor: Colors.grey[300],
-              child: const Icon(Icons.image, size: 48, color: Colors.white),
+            const SizedBox(height: 20),
+            const Center(
+              child: CircleAvatar(
+                radius: 40,
+                child: Icon(Icons.person, size: 40),
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              userName,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const SizedBox(height: 10),
+            Center(
+              child: Text(
+                _profile?['username'] ?? '使用者',
+                style: const TextStyle(fontSize: 20),
+              ),
             ),
-            const SizedBox(height: 24),
-
-            // Basic profile info
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: _profile == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                      '班級：', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(className),
-                  const SizedBox(height: 8),
-                  const Text(
-                      '教師：', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(teacherName),
-                  const SizedBox(height: 16),
-                  const Text('課程說明',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(description),
-                  const Divider(height: 32),
-
-                  const Text('基本資料',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Row(children: [const Text('性別：'), Text(gender)]),
-                  const SizedBox(height: 4),
-                  Row(children: [const Text('生日：'), Text(birthday)]),
-                  const SizedBox(height: 4),
-                  Row(children: [const Text('學號：'), Text(studentId)]),
-                  const SizedBox(height: 4),
-                  Row(children: [const Text('信箱：'), Text(email)]),
-                  const Divider(height: 32),
-
-                  const Text('上次登入時間',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(lastLogin),
+                  Text("UID：${_profile!['uid'] ?? ''}"),
+                  const SizedBox(height: 10),
+                  Text("戰績：${(_profile!['record'] as List?)?.length ?? 0} 筆"),
                 ],
               ),
             ),
             const Spacer(),
+<<<<<<< HEAD
 
             // Logout button
             Padding(
@@ -88,8 +80,34 @@ class ProfileDrawer extends StatelessWidget {
                 ),
               ),
             ),
+=======
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  await widget.authService.logout();
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LoginPage(authService: widget.authService),
+                      ),
+                          (_) => false,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text("登出"),
+              ),
+            )
+>>>>>>> 0c45d5d (mcq-page-integration)
           ],
         ),
       ),
     );
+<<<<<<< HEAD
   }}
+=======
+  }
+}
+>>>>>>> 0c45d5d (mcq-page-integration)
