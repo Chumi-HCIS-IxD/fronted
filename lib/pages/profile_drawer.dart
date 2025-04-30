@@ -1,68 +1,95 @@
+// lib/pages/profile_drawer.dart
 import 'package:flutter/material.dart';
-import 'login_page.dart';
-import '../auth/firebase_auth_service.dart';
 
 class ProfileDrawer extends StatelessWidget {
-  const ProfileDrawer({super.key});
+  const ProfileDrawer({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+// TODO: replace with real user data
+    const userName = 'Name';
+    const className = '三年六班';
+    const teacherName = '王順仁';
+    const description = '一些說明...';
+    const gender = '女';
+    const birthday = '99/10/22';
+    const studentId = 'P36134084';
+    const email = 'P36134084@gmail.com';
+    const lastLogin = '2025/04/06 15:06';
     return Drawer(
       child: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            const CircleAvatar(radius: 40, child: Icon(Icons.person, size: 40)),
-            const SizedBox(height: 10),
-            const Text("Name",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Divider(),
+            // Header with avatar and name
+            const SizedBox(height: 24),
+            CircleAvatar(
+              radius: 48,
+              backgroundColor: Colors.grey[300],
+              child: const Icon(Icons.image, size: 48, color: Colors.white),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
+            const SizedBox(height: 16),
+            const Text(
+              userName,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+
+            // Basic profile info
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("班級：三年六班"),
-                  Text("教師：王曉仁"),
-                  SizedBox(height: 10),
-                  Text("基本資料", style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text("性別：女"),
-                  Text("生日：99/10/22"),
-                  Text("學號：P36134084"),
-                  Text("信箱：P36134084@gmail.com"),
-                  SizedBox(height: 10),
-                  Text("上次登入時間："),
-                  Text("2025/04/06 15:06"),
+                  const Text(
+                      '班級：', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(className),
+                  const SizedBox(height: 8),
+                  const Text(
+                      '教師：', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(teacherName),
+                  const SizedBox(height: 16),
+                  const Text('課程說明',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(description),
+                  const Divider(height: 32),
+
+                  const Text('基本資料',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(children: [const Text('性別：'), Text(gender)]),
+                  const SizedBox(height: 4),
+                  Row(children: [const Text('生日：'), Text(birthday)]),
+                  const SizedBox(height: 4),
+                  Row(children: [const Text('學號：'), Text(studentId)]),
+                  const SizedBox(height: 4),
+                  Row(children: [const Text('信箱：'), Text(email)]),
+                  const Divider(height: 32),
+
+                  const Text('上次登入時間',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(lastLogin),
                 ],
               ),
             ),
             const Spacer(),
+
+            // Logout button
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await FirebaseAuthService()
-                      .logout(); // 👈 清除 Firebase 與 token
-                  if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginPage()),
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text("登出"),
-                style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 48)),
+              padding: const EdgeInsets.all(24.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamedAndRemoveUntil(
+                        context, '/login', (route) => false);
+                  },
+                  child: const Text('登出'),
+                ),
               ),
-            )
+            ),
           ],
         ),
       ),
     );
-  }
-}
+  }}
