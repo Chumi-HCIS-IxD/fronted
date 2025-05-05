@@ -50,15 +50,12 @@ class AuthApiService {
   Future<Map<String, dynamic>?> fetchUserProfile() async {
     final uid = await getUid();
     if (uid == null) return null;
-
     final response = await http.get(
-      Uri.parse('$baseUrl/api/users/profile'),
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
       headers: {
         'Content-Type': 'application/json',
-        'uid': uid,
       },
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -80,4 +77,27 @@ class AuthApiService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('uid');
   }
+  Future<Map<String, bool>> fetchCompletedUnits() async {
+    final uid = await getUid();
+    if (uid == null) return {};
+
+    final url = Uri.parse('$baseUrl/api/mcq/rooms/results');
+    final res = await http.get(url, headers: {'Content-Type': 'application/json'});
+
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      final result = data.firstWhere((r) => r["user"] == uid, orElse: () => null);
+      final completedUnits = result?["completed_units"] ?? [];
+
+      final statusMap = <String, bool>{};
+      for (var unit in ["Unit_1", "Unit_2", "Unit_3", "Unit_4", "Unit_5", "Unit_6"]) {
+        statusMap[unit] = completedUnits.contains(unit);
+      }
+      return statusMap;
+    } else {
+      return {};
+    }
+  }
 }
+
+

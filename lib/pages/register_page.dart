@@ -19,35 +19,44 @@ class RegisterPage extends StatelessWidget {
         child: Column(
           children: [
             TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: "姓名")),
+              controller: nameController,
+              decoration: const InputDecoration(labelText: "姓名"),
+            ),
             const SizedBox(height: 12),
             TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: "帳號")),
+              controller: emailController,
+              decoration: const InputDecoration(labelText: "帳號"),
+            ),
             const SizedBox(height: 12),
             TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: "密碼")),
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: "密碼"),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                final error = await authService.register(
-                    emailController.text, passwordController.text);
+                final name = nameController.text.trim();
+                final username = emailController.text.trim();
+                final password = passwordController.text.trim();
+
+                final error = await authService.register(username, password);
+
                 if (error == null && context.mounted) {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => LoginPage(authService: authService)),
+                      builder: (_) => LoginPage(authService: authService),
+                    ),
                   );
                 } else {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(error ?? "註冊失敗")));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(error ?? "註冊失敗")),
+                  );
                 }
               },
               child: const Text("註冊"),
-            )
+            ),
           ],
         ),
       ),

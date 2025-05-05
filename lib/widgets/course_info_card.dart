@@ -7,80 +7,29 @@ class CourseInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape:
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          children: [
-            // 課程說明區塊
-            ListTile(
-              title: Text(
-                "課程說明",
-                style: GoogleFonts.notoSansTc(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              subtitle: Text(
-                "一些說明...",
-                style: GoogleFonts.notoSansTc(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios,
-                  size: 16, color: Colors.grey),
-              onTap: () {
-                // 點擊導向細節頁
-              },
-            ),
-
-            // 單元一區塊
-            ListTile(
-              title: Text(
-                "單元一",
-                style: GoogleFonts.notoSansTc(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              subtitle: Text(
-                "一些說明...",
-                style: GoogleFonts.notoSansTc(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // 教學進度 + 進度條
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "教學進度",
-                style: GoogleFonts.notoSansTc(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: const LinearProgressIndicator(
-                value: 0.6,
-                color: Colors.deepPurple,
-                backgroundColor: Color(0xFFE0DCEB),
-                minHeight: 8,
-              ),
-            ),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('學習紀錄',
+                style:
+                TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('您的學習狀況良好，繼續保持！'),
+            SizedBox(height: 12),
+            Text('選擇題遊戲',
+                style: TextStyle(fontWeight: FontWeight.w500)),
+            Text('平均答題正確率：80%'),
+            SizedBox(height: 12),
+            Text('濾鏡小遊戲',
+                style: TextStyle(fontWeight: FontWeight.w500)),
+            Text('總遊玩次數：20 次'),
+            SizedBox(height: 16),
+            LinearProgressIndicator(value: 0.5),
           ],
         ),
       ),
