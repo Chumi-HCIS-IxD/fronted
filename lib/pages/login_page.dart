@@ -27,13 +27,15 @@ class _LoginPageState extends State<LoginPage> {
             const Text('登入', style: TextStyle(fontSize: 24)),
             const SizedBox(height: 20),
             TextField(
-                controller: emailController,
-                decoration: const InputDecoration(hintText: '帳號')),
+              controller: emailController,
+              decoration: const InputDecoration(hintText: '帳號'),
+            ),
             const SizedBox(height: 12),
             TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(hintText: '密碼')),
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(hintText: '密碼'),
+            ),
             const SizedBox(height: 12),
             if (_error != null)
               Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -45,8 +47,9 @@ class _LoginPageState extends State<LoginPage> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                        builder: (_) =>
-                            HomePage(authService: widget.authService)),
+                      builder: (_) =>
+                          HomePage(authService: widget.authService),
+                    ),
                   );
                 } else {
                   setState(() => _error = error);
@@ -54,6 +57,7 @@ class _LoginPageState extends State<LoginPage> {
               },
               child: const Text('登入'),
             ),
+            const SizedBox(height: 12),
             GestureDetector(
               onTap: () {
                 Navigator.push(

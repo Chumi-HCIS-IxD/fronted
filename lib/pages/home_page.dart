@@ -6,7 +6,7 @@ import '../services/auth_api_service.dart';
 import '../tabs/game_tab.dart';
 import '../tabs/record.dart';
 import '../tabs/settings_tab.dart';
-import '../../services/auth_api_service.dart';
+import '../MCQ_Game/api.dart';
 
 class HomePage extends StatefulWidget {
   final AuthApiService authService;
@@ -18,21 +18,25 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final _authService = AuthApiService(baseUrl: baseUrl);
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    GameTab(),
-    //   FavoritesTab(),
-    //   SettingsTab(),
-  ];
+  late List<Widget> _pages;
+  // final List<Widget> _pages = [
+  //   GameTab(),
+  //   //   FavoritesTab(),
+  //   //   SettingsTab(),
+  // ];
+
+  final List<String> _titles = const ['小遊戲', '積分榜', '設定'];
 
   @override
   void initState() {
     super.initState();
     _pages = [
       GameTab(),
-      RecordTab(authService: widget.authService), // ✅ 正確存取
+      RecordTab(authService: _authService),
       SettingsTab(),
     ];
   }
