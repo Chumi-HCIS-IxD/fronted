@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'register_page.dart';
 import '../services/auth_api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+
 
 class LoginPage extends StatefulWidget {
   final AuthApiService authService;
@@ -44,11 +47,13 @@ class _LoginPageState extends State<LoginPage> {
                 final error = await widget.authService
                     .login(emailController.text, passwordController.text);
                 if (error == null && mounted) {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('lastLogin', DateTime.now().toIso8601String());
+
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          HomePage(authService: widget.authService),
+                      builder: (_) => HomePage(authService: widget.authService),
                     ),
                   );
                 } else {

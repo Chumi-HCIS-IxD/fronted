@@ -1,17 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../services/auth_api_service.dart';
 
 class UnitDetailPage extends StatefulWidget {
   final String unitId;
   final String roomId;
   final String userId;
+  final AuthApiService authService;
 
   const UnitDetailPage({
     super.key,
     required this.unitId,
     required this.roomId,
     required this.userId,
+    required this.authService,
   });
 
   @override
@@ -25,46 +27,39 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
   @override
   void initState() {
     super.initState();
-    fetchCorrections();
+    fetchData();
   }
 
-  Future<void> fetchCorrections() async {
-    final questionUrl = 'https://your_base_url/api/mcq/questionSets/${widget.unitId}/questions';
-    final resultUrl = 'https://your_base_url/api/mcq/rooms/${widget.roomId}/results';
-
+  Future<void> fetchData() async {
     try {
-      final qRes = await http.get(Uri.parse(questionUrl));
-      final rRes = await http.get(Uri.parse(resultUrl));
+      final questions = await widget.authService.fetchQuestions(widget.unitId);
+      final record = await widget.authService.fetchRecordForUnit(widget.unitId);
+      final userAnswersList = record?['answers'] as List<dynamic>? ?? [];
 
-      if (qRes.statusCode == 200 && rRes.statusCode == 200) {
-        final questions = jsonDecode(qRes.body)['questions'] as List;
-        final results = jsonDecode(rRes.body)['results'] as List;
+      // 將 List 轉成 Map { q01: 2, q02: 1, ... }
+      final Map<String, int> userAnswers = {
+        for (var a in userAnswersList) a['questionId']: a['selected']
+      };
 
-        final userResult = results.firstWhere(
-              (r) => r['user'] == widget.userId,
-          orElse: () => null,
+      final List<QuestionCorrection> parsed = questions.map((q) {
+        final qid = q['id'];
+        final userAnswer = userAnswers[qid];
+
+        return QuestionCorrection(
+          question: q['title'],
+          choices: List<String>.from(q['option']),
+          correctAnswerIndex: q['ans'],
+          userAnswerIndex: userAnswer,
+          isCorrect: userAnswer != null && userAnswer == q['ans'],
         );
+      }).toList();
 
-        final userAnswers = userResult?['answers'] ?? {};
-
-        final List<QuestionCorrection> parsed = questions.asMap().entries.map((entry) {
-          final index = entry.key;
-          final q = entry.value;
-          final userAnswer = userAnswers['$index'];
-
-          return QuestionCorrection.fromApiJson(q, userAnswer);
-        }).toList();
-
-        setState(() {
-          corrections = parsed;
-          isLoading = false;
-        });
-      } else {
-        print('錯誤: ${qRes.statusCode}, ${rRes.statusCode}');
-        setState(() => isLoading = false);
-      }
+      setState(() {
+        corrections = parsed;
+        isLoading = false;
+      });
     } catch (e) {
-      print('取得資料失敗: $e');
+      print('❌ 錯誤：$e');
       setState(() => isLoading = false);
     }
   }
@@ -80,6 +75,8 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
+          : corrections.isEmpty
+          ? const Center(child: Text('無作答紀錄'))
           : Column(
         children: [
           const SizedBox(height: 12),
@@ -98,7 +95,10 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
               itemCount: corrections.length,
               controller: PageController(viewportFraction: 0.9),
               itemBuilder: (context, index) {
-                return CorrectionCard(correction: corrections[index], index: index);
+                return CorrectionCard(
+                  correction: corrections[index],
+                  index: index,
+                );
               },
             ),
           ),
@@ -122,16 +122,6 @@ class QuestionCorrection {
     this.userAnswerIndex,
     required this.isCorrect,
   });
-
-  factory QuestionCorrection.fromApiJson(Map<String, dynamic> q, dynamic userAnswer) {
-    return QuestionCorrection(
-      question: q['text'] ?? '未知題目',
-      choices: List<String>.from(q['choices'] ?? ['A', 'B', 'C', 'D']),
-      correctAnswerIndex: q['correct_index'] ?? 0,
-      userAnswerIndex: userAnswer,
-      isCorrect: userAnswer == q['correct_index'],
-    );
-  }
 }
 
 class CorrectionCard extends StatelessWidget {

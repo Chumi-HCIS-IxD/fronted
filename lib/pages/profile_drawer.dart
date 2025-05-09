@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_api_service.dart';
 import 'login_page.dart';
 
@@ -13,6 +15,7 @@ class ProfileDrawer extends StatefulWidget {
 
 class _ProfileDrawerState extends State<ProfileDrawer> {
   Map<String, dynamic>? _profile;
+  String? _lastLogin;
 
   @override
   void initState() {
@@ -22,93 +25,118 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
 
   Future<void> _loadProfile() async {
     final profile = await widget.authService.fetchUserProfile();
-    setState(() => _profile = profile);
+    final prefs = await SharedPreferences.getInstance();
+    final storedLoginTime = prefs.getString('lastLogin');
+
+    setState(() {
+      _profile = profile;
+      _lastLogin = storedLoginTime;
+    });
+  }
+
+  String formatDateTime(String? isoString) {
+    if (isoString == null) return "不詳";
+    final dt = DateTime.tryParse(isoString);
+    if (dt == null) return "格式錯誤";
+    return DateFormat('yyyy/MM/dd HH:mm').format(dt);
   }
 
   @override
   Widget build(BuildContext context) {
+    final profile = _profile;
+
     return Drawer(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xFFEFF4E9),
       child: SafeArea(
-        child: Column(
+        child: profile == null
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 返回鍵
             Padding(
-              padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    onPressed: () {
-                      Navigator.of(context).pop(); // 關閉 Drawer
-                    },
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                   const Spacer(),
-                  const Icon(Icons.account_circle_outlined, size: 28),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: CircleAvatar(
+                radius: 40,
+                backgroundImage: profile['photo'] != null
+                    ? NetworkImage(profile['photo'])
+                    : null,
+                backgroundColor: Colors.grey.shade300,
+                child: profile['photo'] == null
+                    ? const Icon(Icons.person, size: 40, color: Colors.white)
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                profile['name'] ?? '使用者',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Center(
+              child: Text(
+                "老師",
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            const Divider(thickness: 1, indent: 24, endIndent: 24),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("基本資料", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  Text("生日：${profile['birthday'] ?? '未提供'}"),
+                  const SizedBox(height: 8),
+                  Text("學號：${profile['studentId'] ?? ''}"),
+                  const SizedBox(height: 8),
+                  Text("信箱：${profile['email'] ?? ''}"),
                 ],
               ),
             ),
 
-            const SizedBox(height: 16),
-
-            // 頭像
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.grey.shade300,
-              child: const Icon(Icons.person, size: 50, color: Colors.white),
-            ),
-            const SizedBox(height: 12),
-
-            // 使用者名稱
-            Text(
-              _profile?['username'] ?? '使用者',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 32, thickness: 1, indent: 32, endIndent: 32),
-
-            // 資訊
+            const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _profile == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        Text("UID：${_profile!['uid'] ?? ''}"),
-                        const SizedBox(height: 8),
-                        Text(
-                            "戰績數量：${(_profile!['record'] as List?)?.length ?? 0} 筆"),
-                      ],
-                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("上次登入時間", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(formatDateTime(_lastLogin)),
+                ],
+              ),
             ),
 
             const Spacer(),
-            // Logout button
             Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(
-                        context, '/login', (route) => false);
-                  },
-                  child: const Text('登出'),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple.shade100,
+                    backgroundColor: Colors.pink.shade100,
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: () async {
@@ -117,10 +145,9 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              LoginPage(authService: widget.authService),
+                          builder: (_) => LoginPage(authService: widget.authService),
                         ),
-                        (_) => false,
+                            (_) => false,
                       );
                     }
                   },
@@ -128,7 +155,7 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
                   label: const Text("登出", style: TextStyle(fontSize: 16)),
                 ),
               ),
-            ),
+            )
           ],
         ),
       ),

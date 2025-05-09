@@ -1,156 +1,10 @@
-// import 'dart:convert';
-// import 'package:flutter/material.dart';
-// import 'package:http/http.dart' as http;
-//
-// import 'api.dart';
-// import 'unit_selection_page.dart';
-// import 'room_page.dart';
-//
-// class RoomSelectionPage extends StatefulWidget {
-//   const RoomSelectionPage({Key? key}) : super(key: key);
-//
-//   @override
-//   State<RoomSelectionPage> createState() => _RoomSelectionPageState();
-// }
-//
-// class _RoomSelectionPageState extends State<RoomSelectionPage> {
-//   bool _loading = true;
-//   String? _currentUid;
-//   List<RoomItem> _rooms = [];
-//
-//   @override
-//   void initState() {
-//     super.initState();
-//     _init();
-//   }
-//
-//   Future<void> _init() async {
-//     // 1) 拿老師 UID
-//     try {
-//       _currentUid = await getUserId();
-//     } catch (_) {
-//       _currentUid = null;
-//     }
-//     // 2) 撈房間列表
-//     await _loadRooms();
-//   }
-//
-//   Future<void> _loadRooms() async {
-//     setState(() => _loading = true);
-//     final token = await getToken();
-//     final res = await http.get(
-//       Uri.parse('$baseUrl/api/mcq/rooms'),
-//       headers: {'Authorization': 'Bearer $token'},
-//     );
-//     if (res.statusCode == 200) {
-//       final list = (json.decode(res.body)['rooms'] as List)
-//           .cast<Map<String, dynamic>>();
-//       _rooms = list.map(RoomItem.fromJson).toList();
-//     } else {
-//       debugPrint('GET /rooms failed: ${res.statusCode}');
-//     }
-//     setState(() => _loading = false);
-//   }
-//
-//   Future<void> _onCreateRoom() async {
-//     // A) 先跳到選單元，拿回 chosenUnit
-//     final chosenUnit = await Navigator.push<String>(
-//       context,
-//       MaterialPageRoute(builder: (_) => const UnitSelectionPage()),
-//     );
-//     if (chosenUnit == null) return; // 老師按了返回
-//
-//     // B) 呼 API 建房
-//     setState(() => _loading = true);
-//     final token = await getToken();
-//     final newRoomId = 'room_${DateTime.now().millisecondsSinceEpoch}';
-//     final res = await http.post(
-//       Uri.parse('$baseUrl/api/mcq/rooms'),
-//       headers: {
-//         'Authorization': 'Bearer $token',
-//         'Content-Type': 'application/json',
-//       },
-//       body: json.encode({
-//         'host':      _currentUid,
-//         'unitId':    chosenUnit,   // ← 真正帶回的單元
-//         'roomId':    newRoomId,
-//         'timeLimit': 30,           // 預設 30s
-//       }),
-//     );
-//     if (res.statusCode == 200) {
-//       await _loadRooms(); // 成功就刷新列表
-//     } else {
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(content: Text('建立房間失敗 (${res.statusCode})')),
-//       );
-//     }
-//     setState(() => _loading = false);
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('選擇房間')),
-//       body: _loading
-//           ? const Center(child: CircularProgressIndicator())
-//           : ListView.builder(
-//         itemCount: _rooms.length,
-//         itemBuilder: (ctx, i) {
-//           final r = _rooms[i];
-//           return Card(
-//             margin:
-//             const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-//             child: ListTile(
-//               leading: const Icon(Icons.meeting_room, color: Colors.blue),
-//               title: Text('房間 ${r.roomId}  •  時限：${r.timeLimit}s'),
-//               subtitle: Text('主持人：${r.host}'),
-//               trailing: ElevatedButton(
-//                 onPressed: () => Navigator.push(
-//                   context,
-//                   MaterialPageRoute(
-//                     builder: (_) => RoomPage(roomId: r.roomId),
-//                   ),
-//                 ),
-//                 child: const Text('進入'),
-//               ),
-//             ),
-//           );
-//         },
-//       ),
-//       floatingActionButton: FloatingActionButton(
-//         onPressed: _onCreateRoom,
-//         child: const Icon(Icons.add),
-//       ),
-//     );
-//   }
-// }
-//
-// class RoomItem {
-//   final String roomId;
-//   final String host;
-//   final int timeLimit;
-//   RoomItem({
-//     required this.roomId,
-//     required this.host,
-//     required this.timeLimit,
-//   });
-//   factory RoomItem.fromJson(Map<String, dynamic> j) => RoomItem(
-//     roomId:    j['roomId']    as String,
-//     host:      j['host']      as String,
-//     timeLimit: (j['timeLimit'] as int?) ?? 60,
-//   );
-// }
-
-// lib/MCQ_Game/room_selection_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
-import 'create_room_page.dart';
-import 'unit_selection_page.dart';
 import '../services/auth_api_service.dart';
-import 'api.dart';
+import 'create_room_page.dart';
 import 'room_page.dart';
+import 'api.dart';
 
 const String teacherUid = 'a07fe81b-1f73-46ea-9d52-473017069c43';
 
@@ -164,10 +18,11 @@ class RoomSelectionPage extends StatefulWidget {
 class _RoomSelectionPageState extends State<RoomSelectionPage> {
   final AuthApiService _authService = AuthApiService(baseUrl: baseUrl);
   String? _currentUid;
-  bool _loadingUid = true;
-  bool _loadingRooms = true;
-  bool _loading = false;
-  List<RoomItem> _rooms = [];
+  List<Map<String, dynamic>> rooms = [];
+  Map<String, String> hostNameCache = {}; // hostUid -> name
+  String searchText = '';
+  Map<String, dynamic>? selectedRoom;
+  bool _loading = true;
 
   @override
   void initState() {
@@ -176,121 +31,184 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
   }
 
   Future<void> _initUserAndRooms() async {
-    // 1) 取得當前使用者 UID
     try {
       final profile = await _authService.fetchUserProfile();
-      _currentUid = profile?['uid'] as String?;
+      _currentUid = profile?['uid'];
     } catch (_) {
       _currentUid = null;
     }
-    setState(() => _loadingUid = false);
-
-    // 2) 取得房間列表
-    await _loadRooms();
+    await fetchRooms();
+    setState(() => _loading = false);
   }
 
-  Future<void> _loadRooms() async {
-    setState(() => _loadingRooms = true);
+  Future<void> fetchRooms() async {
     final token = await getToken();
-    final url = '$baseUrl/api/mcq/rooms';
-    debugPrint('GET rooms → $url');
     final res = await http.get(
-      Uri.parse(url),
+      Uri.parse('$baseUrl/api/mcq/rooms'),
       headers: {'Authorization': 'Bearer $token'},
     );
     if (res.statusCode == 200) {
       final list = (json.decode(res.body)['rooms'] as List).cast<Map<String, dynamic>>();
-      setState(() => _rooms = list.map(RoomItem.fromJson).toList());
+      setState(() => rooms = list);
+      await Future.wait(rooms.map((r) => getHostName(r['host'])));
     }
-    setState(() => _loadingRooms = false);
   }
 
-  Future<void> _createRoom() async {
-    final token = await getToken();
-    final newId = 'room_${DateTime.now().millisecondsSinceEpoch}';
-    final url = '$baseUrl/api/mcq/rooms';
-        debugPrint('POST create room → $url, host=$_currentUid');
-        final res = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-      body: json.encode({
-        'host': _currentUid,
-        'unitId': '',
-        'roomId': newId,
-        'timeLimit': 30,
-      }),
+  Future<String> getHostName(String uid) async {
+    if (hostNameCache.containsKey(uid)) return hostNameCache[uid]!;
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+      headers: {'Content-Type': 'application/json'},
     );
-    if (res.statusCode == 200) {
-      await _loadRooms();
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final name = data['name'] ?? '未知使用者';
+      setState(() => hostNameCache[uid] = name);
+      return name;
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('建立房間失敗 (${res.statusCode})')),
-      );
+      return '未知使用者';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loadingUid || _loadingRooms || _loading) {
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
     final isTeacher = _currentUid == teacherUid;
+    final filteredRooms = rooms
+        .where((room) => room['roomId'].toString().contains(searchText))
+        .toList();
+
     return Scaffold(
-      appBar: AppBar(title: const Text('選擇房間')),
-      floatingActionButton: isTeacher
-          ? FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  CreateRoomPage(hostUid: _currentUid!),  // ← 把 _currentUid 傳進去
+      backgroundColor: const Color(0xFFEAF6ED),
+      appBar: AppBar(
+        title: const Text('選擇題', style: TextStyle(color: Colors.green)),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: isTeacher
+                  ? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CreateRoomPage(hostUid: _currentUid!),
+                  ),
+                );
+              }
+                  : null,
+              child: Row(
+                children: [
+                  const CircleAvatar(radius: 24, backgroundColor: Colors.grey),
+                  const SizedBox(width: 12),
+                  Text(
+                    isTeacher ? '建立遊戲房間' : '請選擇房間進入',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
             ),
-          );
-        },
-        child: const Icon(Icons.add),
-      )
-          : null,
-      body: ListView.builder(
-        itemCount: _rooms.length,
-        itemBuilder: (_, i) {
-          final r = _rooms[i];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ListTile(
-              leading: const Icon(Icons.meeting_room, color: Colors.blue),
-              title: Text('房間 ${r.roomId}  •  時限：${r.timeLimit}s'),
-              subtitle: Text('主持人：${r.host}'),
-              trailing: ElevatedButton(
-                onPressed: () {
+            const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFB5D2BF),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  TextField(
+                    onChanged: (v) => setState(() => searchText = v),
+                    decoration: InputDecoration(
+                      hintText: '搜尋房間號碼',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ...filteredRooms.map((room) {
+                    final selected = selectedRoom?['roomId'] == room['roomId'];
+                    final hostName = hostNameCache[room['host']] ?? '讀取中...';
+                    return GestureDetector(
+                      onTap: () => setState(() => selectedRoom = room),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: selected ? const Color(0xFF2F9E76) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '房間號碼：${room['roomId']}',
+                              style: TextStyle(
+                                color: selected ? Colors.white : Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '創建者：$hostName',
+                              style: TextStyle(
+                                color: selected ? Colors.white : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: selectedRoom == null
+                    ? null
+                    : () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => RoomPage(roomId: r.roomId, initTimeLimit: 0),
+                      builder: (_) => RoomPage(
+                        roomId: selectedRoom!['roomId'],
+                        initTimeLimit: 0,
+                      ),
                     ),
                   );
                 },
-                child: Text(isTeacher ? '進入' : '加入'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4AB38C),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: const Text('進入房間', style: TextStyle(fontSize: 16)),
               ),
             ),
-          );
-        },
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
-}
-
-class RoomItem {
-  final String roomId;
-  final String host;
-  final int timeLimit;
-  RoomItem({required this.roomId, required this.host, required this.timeLimit});
-  factory RoomItem.fromJson(Map<String, dynamic> j) => RoomItem(
-    roomId: j['roomId'] as String,
-    host: j['host'] as String,
-    timeLimit: (j['timeLimit'] as int?) ?? 60,
-  );
 }

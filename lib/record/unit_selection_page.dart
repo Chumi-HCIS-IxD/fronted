@@ -15,6 +15,8 @@ class UnitSelectionPage extends StatefulWidget {
 
 class _UnitSelectionPageState extends State<UnitSelectionPage> {
   String? userId;
+  List<Map<String, dynamic>> recentRecords = [];
+
 
   final List<String> units = const [
     'Unit_1',
@@ -43,11 +45,14 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
     super.initState();
     widget.authService.getUid().then((uid) {
       setState(() => userId = uid);
-      widget.authService.fetchCompletedUnits().then((status) {
-        setState(() => completedStatus = status);
+      widget.authService.fetchRecentRecords().then((records) {
+        setState(() => recentRecords = records);
       });
     });
   }
+
+
+
 
 
   @override
@@ -57,7 +62,14 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    final Set<String> unitsWithRecords =
+    recentRecords.map((r) => r['mode'] as String).toSet();
 
+    print('✅ 有紀錄的單元: $unitsWithRecords');
+
+    final List<String> unitsToShow = units
+        .where((unitId) => unitsWithRecords.contains(unitId))
+        .toList();
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5E5),
       appBar: AppBar(
@@ -99,56 +111,56 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
               ),
               padding: const EdgeInsets.all(16),
               child: ListView.builder(
-                itemCount: units.length,
-                itemBuilder: (context, index) {
-                  final unitId = units[index];
-                  final unitName = unitNames[index];
-                  final isCompleted = completedStatus[unitId] ?? false;
 
+                  itemCount: unitsToShow.length,
+                  itemBuilder: (context, index) {
+                    final unitId = unitsToShow[index];
+                    final unitIndex = units.indexOf(unitId); // 取得在原始 units 中的 index
+                    final unitName = unitIndex != -1 ? unitNames[unitIndex] : unitId;
+                    final icon = unitIndex != -1 ? icons[unitIndex] : '❓';
 
-                  return Container(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      leading: Text(icons[index], style: const TextStyle(fontSize: 32)),
-                      title: const Text("選擇題小遊戲", style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(unitName),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            isCompleted ? '已完成' : '未完成',
-                            style: TextStyle(color: isCompleted ? Colors.black87 : Colors.grey),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            isCompleted ? Icons.arrow_forward_ios : Icons.lock_outline,
-                            size: 18,
-                            color: Colors.black54,
-                          ),
-                        ],
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      onTap: isCompleted
-                          ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => UnitDetailPage(
-                              unitId: unitId,
-                              roomId: 'room_${unitId}', // 可根據真實房間邏輯改寫
-                              userId: userId!,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: Text(icon, style: const TextStyle(fontSize: 32)),
+                        title: const Text("選擇題小遊戲", style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(unitName),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '前往訂正',
+                              style: TextStyle(color: Colors.black87),
                             ),
-                          ),
-                        );
-                      }
-                          : null,
-                    ),
-                  );
-                },
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => UnitDetailPage(
+                                unitId: unitId,
+                                roomId: 'room_${unitId}', // 可根據真實房間邏輯改寫
+                                userId: userId!,
+                                authService: widget.authService,
+                              ),
+                            ),
+                          );
+                        }
+                      ),
+                    );
+                  }
               ),
             ),
           ),

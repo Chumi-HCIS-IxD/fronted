@@ -7,13 +7,35 @@ class AuthApiService {
 
   AuthApiService({required this.baseUrl});
 
-  Future<String?> register(String username, String password) async {
+  Future<String?> register({
+    required String username,
+    required String password,
+    required String name,
+    required String email,
+    required String photo,
+    required String birthday,
+    required String studentId,
+    required String gender,
+    required String className,
+    required String teacher,
+  }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/auth/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'username': username,
         'password': password,
+        'name': name,
+        'email': email,
+        'photo': photo,
+        'birthday': birthday,
+        'studentId': studentId,
+        'gender': gender,
+        'className': className,
+        'teacher': teacher,
+        'record': [],
+        'spyRecord': [],
+        'speakRecord': [],
       }),
     );
 
@@ -26,6 +48,7 @@ class AuthApiService {
       return jsonDecode(response.body)['message'] ?? '註冊失敗';
     }
   }
+
 
   Future<String?> login(String username, String password) async {
     final response = await http.post(
@@ -62,6 +85,28 @@ class AuthApiService {
       return null;
     }
   }
+  Future<List<Map<String, dynamic>>> fetchRecentRecords() async {
+    final uid = await getUid();
+    if (uid == null) return [];
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final recordList = data['record'];
+      if (recordList is List) {
+        return recordList.cast<Map<String, dynamic>>();
+      }
+    }
+
+    return []; // 若失敗則回傳空陣列
+  }
+
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
@@ -77,26 +122,46 @@ class AuthApiService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('uid');
   }
-  Future<Map<String, bool>> fetchCompletedUnits() async {
-    final uid = await getUid();
-    if (uid == null) return {};
+  Future<List<Map<String, dynamic>>> fetchQuestions(String unitId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/mcq/questionSets/$unitId/questions'),
+      headers: {'Content-Type': 'application/json'},
+    );
 
-    final url = Uri.parse('$baseUrl/api/mcq/rooms/results');
-    final res = await http.get(url, headers: {'Content-Type': 'application/json'});
-
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      final result = data.firstWhere((r) => r["user"] == uid, orElse: () => null);
-      final completedUnits = result?["completed_units"] ?? [];
-
-      final statusMap = <String, bool>{};
-      for (var unit in ["Unit_1", "Unit_2", "Unit_3", "Unit_4", "Unit_5", "Unit_6"]) {
-        statusMap[unit] = completedUnits.contains(unit);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final questions = data['questions'];
+      if (questions is List) {
+        return questions.cast<Map<String, dynamic>>();
       }
-      return statusMap;
-    } else {
-      return {};
     }
+
+    throw Exception('無法取得題目');
   }
+  Future<Map<String, dynamic>?> fetchRecordForUnit(String unitId) async {
+    final uid = await getUid();
+    if (uid == null) return null;
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final records = data['record'];
+
+      if (records is List) {
+        // 找出對應單元的紀錄
+        return records.cast<Map<String, dynamic>>().firstWhere(
+              (r) => r['mode'] == unitId,
+          orElse: () => {},
+        );
+      }
+    }
+
+    return null;
+  }
+
 }
 

@@ -38,6 +38,8 @@ dependencies:
   firebase_auth: ^5.5.2
   # Audio 播放器
   audioplayers: ^6.4.0
+  image_picker: ^1.0.4
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:
