@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../pages/edit_profile_page.dart';
+import '../services/auth_api_service.dart';
 
 class SettingsTab extends StatelessWidget {
-  const SettingsTab({super.key});
+  final AuthApiService authService;
+  const SettingsTab({super.key, required this.authService});
+
+  Future<void> _logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('userToken');
+    if (context.mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +33,10 @@ class SettingsTab extends StatelessWidget {
             subtitle: const Text('尚未設定'),
             trailing: const Icon(Icons.edit),
             onTap: () {
-              // TODO: 點擊可以跳到編輯畫面
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EditProfilePage(authService: authService))
+              );
             },
           ),
           const Divider(),
@@ -36,15 +51,15 @@ class SettingsTab extends StatelessWidget {
             title: const Text('語言'),
             subtitle: const Text('繁體中文'),
             onTap: () {
-              // TODO: 切換語言
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('語言切換尚未實作')),
+              );
             },
           ),
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('登出'),
-            onTap: () {
-              // TODO: 實作登出
-            },
+            onTap: () => _logout(context),
           ),
         ],
       ),

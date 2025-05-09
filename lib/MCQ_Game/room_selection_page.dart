@@ -154,24 +154,39 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
                           color: selected ? const Color(0xFF2F9E76) : Colors.white,
                           borderRadius: BorderRadius.circular(12),
                         ),
+
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '房間號碼：${room['roomId']}',
-                              style: TextStyle(
-                                color: selected ? Colors.white : Colors.black,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              flex: 3, // 房號多一點空間
+                              child: Text(
+                                '房間號碼：${room['roomId']}',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: selected ? Colors.white : Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            Text(
-                              '創建者：$hostName',
-                              style: TextStyle(
-                                color: selected ? Colors.white : Colors.black54,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2, // 創建者稍微小一點
+                              child: Text(
+                                '創建者：$hostName',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: selected ? Colors.white : Colors.black54,
+                                ),
                               ),
                             ),
                           ],
                         ),
+
                       ),
                     );
                   }),
@@ -184,16 +199,34 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
               child: ElevatedButton(
                 onPressed: selectedRoom == null
                     ? null
-                    : () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RoomPage(
-                        roomId: selectedRoom!['roomId'],
-                        initTimeLimit: 0,
-                      ),
-                    ),
+                    : () async {
+                  final token = await getToken();
+                  final joinUrl = '$baseUrl/api/mcq/rooms/${selectedRoom!['roomId']}/join';
+
+                  final res = await http.post(
+                    Uri.parse(joinUrl),
+                    headers: {
+                      'Authorization': 'Bearer $token',
+                      'Content-Type': 'application/json',
+                    },
+                    body: jsonEncode({"user": _currentUid}),
                   );
+
+                  if (res.statusCode == 200) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RoomPage(
+                          roomId: selectedRoom!['roomId'],
+                          initTimeLimit: 0,
+                        ),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('加入房間失敗：${res.body}')),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4AB38C),

@@ -86,12 +86,12 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
               ),
             ),
             const SizedBox(height: 4),
-            const Center(
-              child: Text(
-                "老師",
-                style: TextStyle(fontSize: 16, color: Colors.black54),
-              ),
-            ),
+            // const Center(
+            //   child: Text(
+            //     "老師",
+            //     style: TextStyle(fontSize: 16, color: Colors.black54),
+            //   ),
+            // ),
 
             const SizedBox(height: 24),
             const Divider(thickness: 1, indent: 24, endIndent: 24),

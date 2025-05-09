@@ -19,6 +19,7 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
   bool _loading = true;
   List<QuestionSet> _sets = [];
   final _timeController = TextEditingController(text: '30');
+  final _roomIdController = TextEditingController();
 
   @override
   void initState() {
@@ -99,54 +100,79 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
 
   /// 按下「創建房間」前，彈出 Dialog 輸入時限
   Future<void> _onPressedCreate(String setId) async {
-    final input = await showDialog<String>(
+    final input = await showDialog<Map<String, String>>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('請輸入遊戲時限（秒）'),
-        content: TextField(
-          controller: _timeController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(hintText: '例如 30'),
+        title: const Text('設定房間資訊'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _roomIdController,
+              decoration: const InputDecoration(hintText: '自訂房間 ID（可留空）'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _timeController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(hintText: '時限（秒）例如 30'),
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          TextButton(onPressed: () => Navigator.pop(context, _timeController.text), child: const Text('確定')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, {
+              'roomId': _roomIdController.text.trim(),
+              'timeLimit': _timeController.text.trim(),
+            }),
+            child: const Text('確定'),
+          ),
         ],
       ),
     );
+
     if (input == null) return;
-    final t = int.tryParse(input);
-    if (t == null || t <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請輸入大於 0 的整數')));
+    final timeLimit = int.tryParse(input['timeLimit'] ?? '');
+    if (timeLimit == null || timeLimit <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('請輸入大於 0 的整數時限')),
+      );
       return;
     }
-    await _createRoom(setId, t);
+    final customRoomId = input['roomId']; // ✅ 接收自訂 roomId
+    await _createRoom(setId, timeLimit, customRoomId);
   }
 
-  Future<void> _createRoom(String setId, int timeLimit) async {
+  Future<void> _createRoom(String setId, int timeLimit, String? roomId) async {
     setState(() => _loading = true);
     final token = await getToken();
+
+    final body = {
+      'host': widget.hostUid,
+      'unitId': setId,
+      'timeLimit': timeLimit,
+      if (roomId != null && roomId.isNotEmpty) 'roomId': roomId, // ✅ 可選
+    };
 
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/mcq/rooms'),
         headers: {
           'Authorization': 'Bearer $token',
-          'Content-Type':  'application/json',
+          'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'host':       widget.hostUid,  // ← 一定要帶這個
-          'unitId':     setId,
-          'timeLimit': int.parse(_timeController.text),
-        }),
+        body: json.encode(body),
       );
 
       debugPrint('POST /rooms → status=${res.statusCode}, body=${res.body}');
       if (res.statusCode == 200 || res.statusCode == 201) {
-        final roomId = json.decode(res.body)['roomId'] as String;
+        final newRoomId = json.decode(res.body)['roomId'] as String;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => RoomPage(roomId: roomId, initTimeLimit: timeLimit)),
+          MaterialPageRoute(
+            builder: (_) => RoomPage(roomId: newRoomId, initTimeLimit: timeLimit),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,6 +187,7 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
       setState(() => _loading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

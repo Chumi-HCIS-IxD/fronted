@@ -109,6 +109,23 @@ class _RoomPageState extends State<RoomPage> {
     }
     return uid;
   }
+  Future<void> _markRoomAsFinished() async {
+    final token = await getToken();
+    final url = '$baseUrl/api/mcq/rooms/${widget.roomId}/finish';
+    try {
+      final res = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      debugPrint('🔚 Room marked as finished: ${res.statusCode}');
+    } catch (e) {
+      debugPrint('❌ Failed to finish room: $e');
+    }
+  }
+
 
   String get unitName {
     switch (unitId) {
@@ -174,9 +191,30 @@ class _RoomPageState extends State<RoomPage> {
               ),
               child: Row(
                 children: [
-                  Text('房間號碼：${widget.roomId}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  Text('創建者：$hostName'),
+                  Flexible(
+                    child: Text(
+                      '房間號碼：${widget.roomId}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12, // ✅ 調整字體大小
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '創建者：$hostName',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 10, // ✅ 調整字體大小
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -244,6 +282,7 @@ class _RoomPageState extends State<RoomPage> {
     setState(() => _loading = true);
 
     final token = await getToken();
+    final url = '$baseUrl/api/mcq/rooms/${widget.roomId}/start';
     final body = {
       'host': _currentUid,
       'unitId': unitId,
@@ -251,16 +290,40 @@ class _RoomPageState extends State<RoomPage> {
 
     try {
       final res = await http.post(
-        Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/start'),
+        Uri.parse(url),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode(body),
+        body: jsonEncode(body),
       );
+
       if (res.statusCode == 200) {
-        _enterGame();
-        return;
+        // ✅ 顯示提示而不是直接跳轉
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            title: const Text('遊戲已開始'),
+            content: const Text('學生已可進入遊戲，老師是否要前往遊戲畫面？'),
+            actions: [
+              TextButton(
+                child: const Text('稍後返回'),
+                onPressed: () async {
+                  Navigator.pop(context); // 關閉 Dialog
+                },
+              ),
+              ElevatedButton(
+                child: const Text('進入遊戲'),
+                onPressed: () {
+                  Navigator.pop(context); // 關閉 Dialog
+                  _enterGame();           // 進入遊戲
+                },
+              ),
+            ],
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('開始遊戲失敗：${res.body}')),

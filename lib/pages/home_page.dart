@@ -37,7 +37,7 @@ class _HomePageState extends State<HomePage> {
     _pages = [
       GameTab(),
       RecordTab(authService: _authService),
-      SettingsTab(),
+      SettingsTab(authService: widget.authService),
     ];
   }
 

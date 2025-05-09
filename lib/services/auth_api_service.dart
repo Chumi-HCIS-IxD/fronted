@@ -162,6 +162,24 @@ class AuthApiService {
 
     return null;
   }
+  Future<String?> updateUserProfile(Map<String, dynamic> data) async {
+    final uid = await getUid();
+    if (uid == null) return '找不到使用者 ID';
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+
+    if (response.statusCode == 200) {
+      return null;
+    } else {
+      print("⚠️ updateUserProfile status: ${response.statusCode}");
+      print("⚠️ updateUserProfile body: ${response.body}");
+      return '更新失敗';
+    }
+  }
 
 }
 
