@@ -193,29 +193,6 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
     }
   }
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('選擇單元')),
-//       body: _loading
-//           ? const Center(child: CircularProgressIndicator())
-//           : ListView.builder(
-//         padding: const EdgeInsets.symmetric(vertical: 8),
-//         itemCount: _unitIds.length,
-//         itemBuilder: (ctx, i) {
-//           final u = _unitIds[i];
-//           return ListTile(
-//             title: Text('題庫：\$u'),
-//             onTap: () {
-//               _onSelectAnswer(opt);
-//             },
-//           );
-//         },
-//       ),
-//     );
-//   }
-// }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -242,6 +219,7 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
                       unitId: unit,
                       roomId: widget.roomId,
                       duration: widget.timeLimit,
+                      uid: '',
                     ),
                   ),
                 );

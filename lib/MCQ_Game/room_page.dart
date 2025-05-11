@@ -1,3 +1,4 @@
+// lib/MCQ_Game/room_page.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -45,14 +46,57 @@ class _RoomPageState extends State<RoomPage> {
   }
 
   Future<void> _initialize() async {
+    setState(() => _loading = true);
+
+    // 1) 先拿到自己的 uid
     try {
       final profile = await _authApi.fetchUserProfile();
       _currentUid = profile?['uid'] as String?;
-    } catch (_) {
-      _currentUid = null;
+    } catch (e) {
+      debugPrint('fetch profile failed: $e');
     }
+
+    // 2) 呼叫 join（一定要在拿到 _currentUid 之後）
+    await _joinRoom();
+
+    // 3) 第一次抓狀態
     await _refreshStatus();
+
+    // 4) 啟動輪詢
     _timer = Timer.periodic(const Duration(seconds: 3), (_) => _refreshStatus());
+
+    setState(() => _loading = false);
+  }
+
+  Future<void> _joinRoom() async {
+    if (_currentUid == null) {
+      debugPrint('No uid，skip join');
+      return;
+    }
+
+    final token = await getToken();
+    final uri = Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/join');
+
+    final res = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'user': _currentUid,   // ← 加上 user 欄位
+        // 或是 'uid': _currentUid，要看後端需要哪個 key
+      }),
+    );
+
+    debugPrint('JOIN ${res.statusCode}: ${res.body}');
+
+    if (res.statusCode != 200) {
+      // 失敗時提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('加入房間失敗：${res.statusCode}')),
+      );
+    }
   }
 
   @override
@@ -70,6 +114,7 @@ class _RoomPageState extends State<RoomPage> {
         Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/status'),
         headers: {'Authorization': 'Bearer $token'},
       );
+      debugPrint('STATUS JSON → ${res.body}');
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
         hostUid = data['host'] ?? hostUid;
@@ -101,8 +146,8 @@ class _RoomPageState extends State<RoomPage> {
         },
       );
       if (res.statusCode == 200) {
-        final profile = json.decode(res.body);
-        return profile['username'] ?? uid;
+        final profile = json.decode(res.body) as Map<String, dynamic>;
+        return profile['username'] as String? ?? uid;
       }
     } catch (e) {
       debugPrint('lookupUsername exception: $e');
@@ -164,28 +209,58 @@ class _RoomPageState extends State<RoomPage> {
                 ],
               ),
             ),
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+            // Container(
+            //   margin: const EdgeInsets.all(16),
+            //   padding: const EdgeInsets.all(16),
+            //   decoration: BoxDecoration(
+            //     color: Colors.white,
+            //     borderRadius: BorderRadius.circular(8),
+            //     boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+            //   ),
+            //   child: Row(
+            //     children: [
+            //       Text('房間號碼：${widget.roomId}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            //       const Spacer(),
+            //       Text('創建者：$hostName'),
+            //     ],
+            //   ),
+            // ),
+            Flexible(
+              child: Text(
+                '房間號碼：${widget.roomId}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
-              child: Row(
-                children: [
-                  Text('房間號碼：${widget.roomId}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  Text('創建者：$hostName'),
-                ],
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                '創建者：$hostName',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: participants,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Text('單元一', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      '房號：${widget.roomId}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '建立者：$hostName',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
             const Spacer(),
@@ -226,14 +301,28 @@ class _RoomPageState extends State<RoomPage> {
     );
   }
 
-  void _enterGame() {
+  Future<void> _enterGame() async {
+    final token = await getToken();
+    // 1) 先呼叫一次 /rooms/<roomId> 拿 timeLimit
+    final infoRes = await http.get(
+      Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    debugPrint('ROOM INFO = ${infoRes.body}');
+    int duration = widget.initTimeLimit;
+    if (infoRes.statusCode == 200) {
+      final info = json.decode(infoRes.body) as Map<String, dynamic>;
+      duration = (info['timeLimit'] as num?)?.toInt() ?? duration;
+    }
+    // 2) 再導到遊戲頁
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (_) => McqGamePage(
           unitId: unitId,
           roomId: widget.roomId,
-          duration: timeLimit,
+          uid: _currentUid!,
+          duration: timeLimit,  // 正確秒數
         ),
       ),
     );
@@ -260,15 +349,16 @@ class _RoomPageState extends State<RoomPage> {
       );
       if (res.statusCode == 200) {
         _enterGame();
+        debugPrint('STATUS JSON = ${res.body}');
         return;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('開始遊戲失敗：${res.body}')),
+          SnackBar(content: Text('開始遊戲失敗：\${res.body}')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('開始遊戲錯誤：$e')),
+        SnackBar(content: Text('開始遊戲錯誤：\$e')),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -277,4 +367,22 @@ class _RoomPageState extends State<RoomPage> {
       }
     }
   }
+
+  // Future<void> _startGameAsHost() async {
+  //   // 先取消輪詢、顯示 loading...
+  //   await _joinRoom();
+  //   await _refreshStatus();            // 確保 timeLimit 有更新
+  //   Navigator.pushReplacement(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder: (_) => McqGamePage(
+  //         unitId: unitId,
+  //         roomId: widget.roomId,
+  //         uid: _currentUid!,
+  //         duration: timeLimit,         // ✔️ 這裡用 state
+  //       ),
+  //     ),
+  //   );
+  // }
 }
+

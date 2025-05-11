@@ -108,6 +108,36 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
                 );
               }
                   : null,
+              // child: Row(
+              //   children: [
+              //     // 房間號碼欄位
+              //     Flexible(
+              //       flex: 1,
+              //       child: Text(
+              //         '房間號碼：${room['roomId']}',
+              //         style: TextStyle(
+              //           color: selected ? Colors.white : Colors.black,
+              //           fontWeight: FontWeight.bold,
+              //         ),
+              //         overflow: TextOverflow.ellipsis,
+              //         maxLines: 1,
+              //       ),
+              //     ),
+              //     const SizedBox(width: 8),
+              //     // 創建者欄位
+              //     Flexible(
+              //       flex: 1,
+              //       child: Text(
+              //         '創建者：$hostName',
+              //         style: TextStyle(
+              //           color: selected ? Colors.white : Colors.black54,
+              //         ),
+              //         overflow: TextOverflow.ellipsis,
+              //         maxLines: 1,
+              //       ),
+              //     ),
+              //   ],
+              // ),
               child: Row(
                 children: [
                   const CircleAvatar(radius: 24, backgroundColor: Colors.grey),
@@ -155,26 +185,38 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '房間號碼：${room['roomId']}',
-                              style: TextStyle(
-                                color: selected ? Colors.white : Colors.black,
-                                fontWeight: FontWeight.bold,
+                            // 房間號碼：用 Flexible 包，超長自動 …
+                            Flexible(
+                              flex: 1,
+                              child: Text(
+                                '房間號碼：${room['roomId']}',
+                                style: TextStyle(
+                                  color: selected ? Colors.white : Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ),
-                            Text(
-                              '創建者：$hostName',
-                              style: TextStyle(
-                                color: selected ? Colors.white : Colors.black54,
+                            const SizedBox(width: 8),
+                            // 創建者：同理
+                            Flexible(
+                              flex: 1,
+                              child: Text(
+                                '創建者：$hostName',
+                                style: TextStyle(
+                                  color: selected ? Colors.white : Colors.black54,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ),
                           ],
                         ),
                       ),
                     );
-                  }),
+                  }).toList(),
                 ],
               ),
             ),
