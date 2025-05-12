@@ -48,7 +48,8 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (res.statusCode == 200) {
-      final list = (json.decode(res.body)['rooms'] as List).cast<Map<String, dynamic>>();
+      final list =
+          (json.decode(res.body)['rooms'] as List).cast<Map<String, dynamic>>();
       setState(() => rooms = list);
       await Future.wait(rooms.map((r) => getHostName(r['host'])));
     }
@@ -100,13 +101,13 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
             GestureDetector(
               onTap: isTeacher
                   ? () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CreateRoomPage(hostUid: _currentUid!),
-                  ),
-                );
-              }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CreateRoomPage(hostUid: _currentUid!),
+                        ),
+                      );
+                    }
                   : null,
               child: Row(
                 children: [
@@ -151,10 +152,10 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: selected ? const Color(0xFF2F9E76) : Colors.white,
+                          color:
+                              selected ? const Color(0xFF2F9E76) : Colors.white,
                           borderRadius: BorderRadius.circular(12),
                         ),
-
                         child: Row(
                           children: [
                             Expanded(
@@ -180,13 +181,13 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: selected ? Colors.white : Colors.black54,
+                                  color:
+                                      selected ? Colors.white : Colors.black54,
                                 ),
                               ),
                             ),
                           ],
                         ),
-
                       ),
                     );
                   }),
@@ -200,34 +201,35 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
                 onPressed: selectedRoom == null
                     ? null
                     : () async {
-                  final token = await getToken();
-                  final joinUrl = '$baseUrl/api/mcq/rooms/${selectedRoom!['roomId']}/join';
+                        final token = await getToken();
+                        final joinUrl =
+                            '$baseUrl/api/mcq/rooms/${selectedRoom!['roomId']}/join';
 
-                  final res = await http.post(
-                    Uri.parse(joinUrl),
-                    headers: {
-                      'Authorization': 'Bearer $token',
-                      'Content-Type': 'application/json',
-                    },
-                    body: jsonEncode({"user": _currentUid}),
-                  );
+                        final res = await http.post(
+                          Uri.parse(joinUrl),
+                          headers: {
+                            'Authorization': 'Bearer $token',
+                            'Content-Type': 'application/json',
+                          },
+                          body: jsonEncode({"user": _currentUid}),
+                        );
 
-                  if (res.statusCode == 200) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => RoomPage(
-                          roomId: selectedRoom!['roomId'],
-                          initTimeLimit: 0,
-                        ),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('加入房間失敗：${res.body}')),
-                    );
-                  }
-                },
+                        if (res.statusCode == 200) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RoomPage(
+                                roomId: selectedRoom!['roomId'],
+                                initTimeLimit: 0,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('加入房間失敗：${res.body}')),
+                          );
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4AB38C),
                   padding: const EdgeInsets.symmetric(vertical: 16),

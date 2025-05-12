@@ -52,7 +52,8 @@ class _RoomPageState extends State<RoomPage> {
       _currentUid = null;
     }
     await _refreshStatus();
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _refreshStatus());
+    _timer =
+        Timer.periodic(const Duration(seconds: 3), (_) => _refreshStatus());
   }
 
   @override
@@ -109,6 +110,7 @@ class _RoomPageState extends State<RoomPage> {
     }
     return uid;
   }
+
   Future<void> _markRoomAsFinished() async {
     final token = await getToken();
     final url = '$baseUrl/api/mcq/rooms/${widget.roomId}/finish';
@@ -126,16 +128,22 @@ class _RoomPageState extends State<RoomPage> {
     }
   }
 
-
   String get unitName {
     switch (unitId) {
-      case 'Unit_1': return '單元一';
-      case 'Unit_2': return '單元二';
-      case 'Unit_3': return '單元三';
-      case 'Unit_4': return '單元四';
-      case 'Unit_5': return '單元五';
-      case 'Unit_6': return '單元六';
-      default: return '未命名單元';
+      case 'Unit_1':
+        return '單元一';
+      case 'Unit_2':
+        return '單元二';
+      case 'Unit_3':
+        return '單元三';
+      case 'Unit_4':
+        return '單元四';
+      case 'Unit_5':
+        return '單元五';
+      case 'Unit_6':
+        return '單元六';
+      default:
+        return '未命名單元';
     }
   }
 
@@ -240,7 +248,8 @@ class _RoomPageState extends State<RoomPage> {
         CircleAvatar(
           radius: 24,
           backgroundColor: isHost ? Colors.orange : Colors.grey[300],
-          child: Text(name.isNotEmpty ? name[0] : '', style: const TextStyle(color: Colors.white, fontSize: 20)),
+          child: Text(name.isNotEmpty ? name[0] : '',
+              style: const TextStyle(color: Colors.white, fontSize: 20)),
         ),
         const SizedBox(height: 6),
         Text(name, style: const TextStyle(fontSize: 12)),
@@ -264,14 +273,28 @@ class _RoomPageState extends State<RoomPage> {
     );
   }
 
-  void _enterGame() {
+  Future<void> _enterGame() async {
+    final token = await getToken();
+    // 1) 先呼叫一次 /rooms/<roomId> 拿 timeLimit
+    final infoRes = await http.get(
+      Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    debugPrint('ROOM INFO = ${infoRes.body}');
+    int duration = widget.initTimeLimit;
+    if (infoRes.statusCode == 200) {
+      final info = json.decode(infoRes.body) as Map<String, dynamic>;
+      duration = (info['timeLimit'] as num?)?.toInt() ?? duration;
+    }
+    // 2) 再導到遊戲頁
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (_) => McqGamePage(
           unitId: unitId,
           roomId: widget.roomId,
-          duration: timeLimit,
+          uid: _currentUid!,
+          duration: timeLimit, // 正確秒數
         ),
       ),
     );
@@ -318,7 +341,7 @@ class _RoomPageState extends State<RoomPage> {
                 child: const Text('進入遊戲'),
                 onPressed: () {
                   Navigator.pop(context); // 關閉 Dialog
-                  _enterGame();           // 進入遊戲
+                  _enterGame(); // 進入遊戲
                 },
               ),
             ],
@@ -336,7 +359,8 @@ class _RoomPageState extends State<RoomPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
       if (status != 'started') {
-        _timer = Timer.periodic(const Duration(seconds: 3), (_) => _refreshStatus());
+        _timer =
+            Timer.periodic(const Duration(seconds: 3), (_) => _refreshStatus());
       }
     }
   }
