@@ -6,7 +6,7 @@ import '../services/auth_api_service.dart';
 import '../tabs/game_tab.dart';
 import '../tabs/record.dart';
 import '../tabs/settings_tab.dart';
-import '../MCQ_Game/api.dart';
+import '../games/MCQ_Game/api.dart';
 
 class HomePage extends StatefulWidget {
   final AuthApiService authService;

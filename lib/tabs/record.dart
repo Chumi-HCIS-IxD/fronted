@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../record/unit_selection_page.dart';
+import '../record/mcq_game/unit_selection_page.dart';
 import '../../services/auth_api_service.dart';
 
 class RecordTab extends StatelessWidget {

@@ -152,7 +152,7 @@
 // lib/tabs/game_tab.dart
 
 import 'package:flutter/material.dart';
-import '../MCQ_Game/room_selection_page.dart';
+import '../games/MCQ_Game/room_selection_page.dart';
 
 class GameTab extends StatefulWidget {
   const GameTab({Key? key}) : super(key: key);

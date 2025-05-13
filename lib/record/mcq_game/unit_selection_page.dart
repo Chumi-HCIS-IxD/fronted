@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/auth_api_service.dart';
+import '../../services/auth_api_service.dart';
 import 'unit_detail_page.dart';
-import 'package:http/http.dart' as http;
 
 class UnitSelectionPage extends StatefulWidget {
   final AuthApiService authService;
@@ -14,9 +12,7 @@ class UnitSelectionPage extends StatefulWidget {
 }
 
 class _UnitSelectionPageState extends State<UnitSelectionPage> {
-  String? userId;
   List<Map<String, dynamic>> recentRecords = [];
-
 
   final List<String> units = const [
     'Unit_1',
@@ -38,38 +34,24 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
 
   final icons = ['🍐', '🍔', '📷', '🎯', '📚', '🧠'];
 
-  Map<String, bool> completedStatus = {}; // 存每個單元是否完成
-
   @override
   void initState() {
     super.initState();
-    widget.authService.getUid().then((uid) {
-      setState(() => userId = uid);
-      widget.authService.fetchRecentRecords().then((records) {
-        setState(() => recentRecords = records);
-      });
+    widget.authService.fetchAllRecords().then((records) {
+      setState(() => recentRecords = records.take(5).toList()); // 最多只保留前 10 筆
+      print('📘 共抓到 ${records.length} 筆作答紀錄');
     });
   }
 
 
-
-
-
   @override
   Widget build(BuildContext context) {
-    if (userId == null) {
+    if (recentRecords.isEmpty) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    final Set<String> unitsWithRecords =
-    recentRecords.map((r) => r['mode'] as String).toSet();
 
-    print('✅ 有紀錄的單元: $unitsWithRecords');
-
-    final List<String> unitsToShow = units
-        .where((unitId) => unitsWithRecords.contains(unitId))
-        .toList();
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5E5),
       appBar: AppBar(
@@ -79,20 +61,6 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
       body: Column(
         children: [
           const SizedBox(height: 16),
-          // 平均完成率
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: const [
-                Text(
-                  '平均達題正確率：80%',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
           const Center(
             child: Column(
               children: [
@@ -111,13 +79,14 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
               ),
               padding: const EdgeInsets.all(16),
               child: ListView.builder(
-
-                  itemCount: unitsToShow.length,
+                  itemCount: recentRecords.length,
                   itemBuilder: (context, index) {
-                    final unitId = unitsToShow[index];
-                    final unitIndex = units.indexOf(unitId); // 取得在原始 units 中的 index
+                    final record = recentRecords[index];
+                    final unitId = record['mode']; // e.g. Unit_1
+                    final unitIndex = units.indexOf(unitId);
                     final unitName = unitIndex != -1 ? unitNames[unitIndex] : unitId;
                     final icon = unitIndex != -1 ? icons[unitIndex] : '❓';
+                    final dateString = record['date'] ?? '未提供時間';
 
                     return Container(
                       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -130,19 +99,12 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
                         leading: Text(icon, style: const TextStyle(fontSize: 32)),
                         title: const Text("選擇題小遊戲", style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(unitName),
-                        trailing: Row(
+                        trailing: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              '前往訂正',
-                              style: TextStyle(color: Colors.black87),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              size: 18,
-                              color: Colors.black54,
-                            ),
+                            Text('前往訂正', style: TextStyle(color: Colors.black87)),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward_ios, size: 18, color: Colors.black54),
                           ],
                         ),
                         onTap: () {
@@ -151,16 +113,19 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
                             MaterialPageRoute(
                               builder: (_) => UnitDetailPage(
                                 unitId: unitId,
-                                roomId: 'room_${unitId}', // 可根據真實房間邏輯改寫
-                                userId: userId!,
+                                roomId: 'room_$unitId',
+                                userId: 'anonymous',
                                 authService: widget.authService,
+                                date: dateString,
+                                recordData: record, // ✅ 傳整筆紀錄進去
                               ),
                             ),
                           );
-                        }
+                        },
                       ),
                     );
                   }
+
               ),
             ),
           ),

@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../services/auth_api_service.dart';
+import '../../services/auth_api_service.dart';
 
 class UnitDetailPage extends StatefulWidget {
+  final String date; // ← 新增這行
   final String unitId;
   final String roomId;
   final String userId;
   final AuthApiService authService;
+
+  /// 新增：可選的作答紀錄（直接來自 UnitSelectionPage）
+  final Map<String, dynamic>? recordData;
 
   const UnitDetailPage({
     super.key,
@@ -14,11 +18,14 @@ class UnitDetailPage extends StatefulWidget {
     required this.roomId,
     required this.userId,
     required this.authService,
+    required this.date,
+    this.recordData,
   });
 
   @override
   State<UnitDetailPage> createState() => _UnitDetailPageState();
 }
+
 
 class _UnitDetailPageState extends State<UnitDetailPage> {
   List<QuestionCorrection> corrections = [];
@@ -33,36 +40,74 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
   Future<void> fetchData() async {
     try {
       final questions = await widget.authService.fetchQuestions(widget.unitId);
-      final record = await widget.authService.fetchRecordForUnit(widget.unitId);
+
+      final record = widget.recordData ??
+          await widget.authService.fetchRecordForUnit(widget.unitId);
+
       final userAnswersList = record?['answers'] as List<dynamic>? ?? [];
 
-      // 將 List 轉成 Map { q01: 2, q02: 1, ... }
-      final Map<String, int> userAnswers = {
-        for (var a in userAnswersList) a['questionId']: a['selected']
-      };
+      final Map<int, int> userAnswers = {};
+      for (var a in userAnswersList) {
+        try {
+          final raw = a['questionId'].toString(); // e.g. "q01"
+          final match = RegExp(r'\d+').firstMatch(raw); // 擷取數字部分
+          if (match != null) {
+            final parsedId = int.parse(match.group(0)!) + 1; // ✅ 減一
+            userAnswers[parsedId] = a['selected'];
+          } else {
+            print('⚠️ 無法從 questionId=$raw 擷取數字');
+          }
+        } catch (e) {
+          print('❌ 無法解析 questionId=${a['questionId']}：$e');
+        }
+      }
 
-      final List<QuestionCorrection> parsed = questions.map((q) {
-        final qid = q['id'];
-        final userAnswer = userAnswers[qid];
 
-        return QuestionCorrection(
-          question: q['title'],
-          choices: List<String>.from(q['option']),
-          correctAnswerIndex: q['ans'],
-          userAnswerIndex: userAnswer,
-          isCorrect: userAnswer != null && userAnswer == q['ans'],
-        );
-      }).toList();
+
+
+
+      final List<QuestionCorrection> parsed = [];
+
+      for (var q in questions) {
+        final qidStr = q['id'].toString(); // e.g. "q01"
+        print('🔍 處理題目 ID: $qidStr');
+
+        try {
+          final match = RegExp(r'\d+').firstMatch(qidStr);
+          if (match == null) {
+            print('⚠️ 無法從 $qidStr 找到數字');
+            continue;
+          }
+
+          final qidIndex = int.parse(match.group(0)!); // 不減 1，與 questionId 對齊
+          final userAnswer = userAnswers[qidIndex];
+
+          print('✅ 題目 $qidStr (index=$qidIndex) 使用者選：$userAnswer');
+
+          parsed.add(QuestionCorrection(
+            question: q['title'],
+            choices: List<String>.from(q['option']),
+            correctAnswerIndex: q['ans'],
+            userAnswerIndex: userAnswer,
+            isCorrect: userAnswer != null && userAnswer == q['ans'],
+          ));
+        } catch (e) {
+          print('❌ 錯誤處理題目 $qidStr：$e');
+        }
+      }
 
       setState(() {
         corrections = parsed;
         isLoading = false;
       });
     } catch (e) {
-      print('❌ 錯誤：$e');
+      print('❌ 外層錯誤：$e');
       setState(() => isLoading = false);
     }
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -73,12 +118,20 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
         title: Text(widget.unitId),
         centerTitle: true,
       ),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : corrections.isEmpty
           ? const Center(child: Text('無作答紀錄'))
           : Column(
         children: [
+          const SizedBox(height: 12),
+
+          // 🔽 加在這裡（顯示作答時間）
+          Text(
+            '作答時間：${widget.date.replaceFirst("T", " ").split(".")[0]}',
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
           const SizedBox(height: 12),
           Text(
             '答對題數：$correctCount / ${corrections.length}',

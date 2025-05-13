@@ -85,6 +85,7 @@ class AuthApiService {
       return null;
     }
   }
+
   Future<List<Map<String, dynamic>>> fetchRecentRecords() async {
     final uid = await getUid();
     if (uid == null) return [];
@@ -122,6 +123,7 @@ class AuthApiService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('uid');
   }
+
   Future<List<Map<String, dynamic>>> fetchQuestions(String unitId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/mcq/questionSets/$unitId/questions'),
@@ -138,6 +140,7 @@ class AuthApiService {
 
     throw Exception('無法取得題目');
   }
+
   Future<Map<String, dynamic>?> fetchRecordForUnit(String unitId) async {
     final uid = await getUid();
     if (uid == null) return null;
@@ -162,6 +165,27 @@ class AuthApiService {
 
     return null;
   }
+
+  Future<List<Map<String, dynamic>>> fetchAllRecords() async {
+    final uid = await getUid();
+    if (uid == null) return [];
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final records = data['record'];
+      if (records is List) {
+        return records.cast<Map<String, dynamic>>();
+      }
+    }
+
+    return [];
+  }
+
   Future<String?> updateUserProfile(Map<String, dynamic> data) async {
     final uid = await getUid();
     if (uid == null) return '找不到使用者 ID';
@@ -180,6 +204,5 @@ class AuthApiService {
       return '更新失敗';
     }
   }
-
 }
 
