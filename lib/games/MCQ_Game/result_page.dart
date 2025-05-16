@@ -25,6 +25,8 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   bool _loading = true;
+  String _unitTitle = '';
+  String _displayRoomId = '';
   String _hostUid = '';
   String _hostName = '';
   List<Map<String, dynamic>> _results = [];
@@ -40,14 +42,14 @@ class _ResultPageState extends State<ResultPage> {
     final token = await getToken();
 
     // 1) POST 自己的答案
-    await http.post(
-      Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/submit'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'user': widget.uid, 'answers': widget.answers}),
-    );
+    // await http.post(
+    //   Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/submit'),
+    //   headers: {
+    //     'Authorization': 'Bearer $token',
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: json.encode({'user': widget.uid, 'answers': widget.answers}),
+    // );
 
     // 2) GET 全部結果
     final res = await http.get(
@@ -60,6 +62,7 @@ class _ResultPageState extends State<ResultPage> {
           ?.cast<Map<String, dynamic>>() ??
           [];
     }
+    debugPrint("📦 所有 results = $_results");
 
     // 3) GET 房間狀態 → 取得 hostUid + hostName
     final statusRes = await http.get(
@@ -69,7 +72,25 @@ class _ResultPageState extends State<ResultPage> {
     if (statusRes.statusCode == 200) {
       final sd = json.decode(statusRes.body) as Map<String, dynamic>;
       _hostUid = sd['host'] as String? ?? '';
+      final unitId = sd['unitId'] as String? ?? '';
+      final num = unitId.split('_').last;
+      _unitTitle = '單元$num';
       _hostName = await _lookupUsername(_hostUid, token);
+    }
+
+    final roomsRes = await http.get(
+      Uri.parse('$baseUrl/api/mcq/rooms'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (roomsRes.statusCode == 200) {
+      final jr = json.decode(roomsRes.body) as Map<String, dynamic>;
+      final list = (jr['rooms'] as List<dynamic>?)
+          ?.cast<Map<String, dynamic>>() ?? [];
+      final me = list.firstWhere(
+            (r) => r['host'] == _hostUid,
+        orElse: () => <String, dynamic>{},
+      );
+      _displayRoomId = me['roomId'] as String? ?? widget.roomId;
     }
 
     // 4) 過濾老師
@@ -113,8 +134,9 @@ class _ResultPageState extends State<ResultPage> {
 
     // 排序、Top3 + 其他
     _results.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
-    final top3 = _results.take(3).toList();
-    final others = _results.skip(3).toList();
+    final topCount = _results.length >= 3 ? 3 : _results.length;
+    final top3 = _results.take(topCount).toList();
+    final allPlayers = _results;
 
     return Scaffold(
       appBar: AppBar(
@@ -131,9 +153,9 @@ class _ResultPageState extends State<ResultPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                const Text('單元一', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(_unitTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                Text('房號：${widget.roomId}'),
+                Text('房號：$_displayRoomId'),
                 const SizedBox(width: 8),
                 Text('建立者：$_hostName'),
               ],
@@ -161,10 +183,11 @@ class _ResultPageState extends State<ResultPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(3, (i) {
-                final r = i < top3.length ? top3[i] : {'user': '', 'score': 0};
+              children: List.generate(top3.length, (i) {
+                final r = top3[i];
                 final radius = i == 1 ? 40.0 : 30.0;
                 final name = _shortName(_nameCache[r['user']] ?? '');
+                final bonus = (i == 0 ? 30 : i == 1 ? 20 : 15);
                 return Column(
                   children: [
                     CircleAvatar(
@@ -174,7 +197,7 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                     const SizedBox(height: 6),
                     Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text('+${r['score']}分'),
+                    Text('+${bonus}分', style: const TextStyle(color: Colors.green)),
                   ],
                 );
               }),
@@ -185,22 +208,23 @@ class _ResultPageState extends State<ResultPage> {
 
           // 其他名次
           Expanded(
-            child: others.isEmpty
-                ? const Center(child: Text('無更多玩家'))
-                : ListView.separated(
+            child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: others.length,
+              itemCount: allPlayers.length,
               separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (_, idx) {
-                final r = others[idx];
+                final r = allPlayers[idx];
                 final name = _nameCache[r['user']] ?? r['user'].substring(0, 6);
+                final displayScore = (r['user'] == widget.uid)
+                    ? widget.score
+                    : (r['score'] as int);
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Colors.grey[200],
                     child: const Icon(Icons.person),
                   ),
                   title: Text(name),
-                  trailing: Text('${r['score']}分'),
+                  trailing: Text('${displayScore}分'),
                 );
               },
             ),

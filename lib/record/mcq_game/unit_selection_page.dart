@@ -38,7 +38,10 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
   void initState() {
     super.initState();
     widget.authService.fetchAllRecords().then((records) {
-      setState(() => recentRecords = records.take(5).toList()); // 最多只保留前 10 筆
+      setState(() => recentRecords = records.length <= 5
+          ? records.reversed.toList()
+          : records.sublist(records.length - 5).reversed.toList());
+
       print('📘 共抓到 ${records.length} 筆作答紀錄');
     });
   }
