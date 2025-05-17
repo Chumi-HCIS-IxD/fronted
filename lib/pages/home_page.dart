@@ -11,16 +11,24 @@ import '../games/MCQ_Game/api.dart';
 class HomePage extends StatefulWidget {
   final AuthApiService authService;
 
-  const HomePage({super.key, required this.authService});
+  // 1) 新增 initialIndex
+  final int initialIndex;
+
+  const HomePage({
+    Key? key,
+    required this.authService,
+    this.initialIndex = 0,    // 預設為 0（首頁）
+  }) : super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
+
 class _HomePageState extends State<HomePage> {
   final _authService = AuthApiService(baseUrl: baseUrl);
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   late List<Widget> _pages;
   // final List<Widget> _pages = [
@@ -29,11 +37,12 @@ class _HomePageState extends State<HomePage> {
   //   //   SettingsTab(),
   // ];
 
-  final List<String> _titles = const ['小遊戲', '積分榜', '設定'];
+  final List<String> _titles = const ['小遊戲', '紀錄', '設定'];
 
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _pages = [
       GameTab(),
       RecordTab(authService: _authService),

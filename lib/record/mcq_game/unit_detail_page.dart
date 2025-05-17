@@ -52,7 +52,7 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
           final raw = a['questionId'].toString(); // e.g. "q01"
           final match = RegExp(r'\d+').firstMatch(raw); // 擷取數字部分
           if (match != null) {
-            final parsedId = int.parse(match.group(0)!) + 1; // ✅ 減一
+            final parsedId = int.parse(match.group(0)!); // ✅ 減一
             userAnswers[parsedId] = a['selected'];
           } else {
             print('⚠️ 無法從 questionId=$raw 擷取數字');
