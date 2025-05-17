@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'api.dart';
+import '../../pages/home_page.dart';
+import '../../services/auth_api_service.dart';
 
 class ResultPage extends StatefulWidget {
   final int score;
@@ -245,11 +247,25 @@ class _ResultPageState extends State<ResultPage> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      // TODO: 訂正
+                      // 先建立一个 AuthApiService 实例
+                      final authService = AuthApiService(baseUrl: baseUrl);
+
+                      // 再 pushAndRemoveUntil 到 HomePage(initialIndex:2)
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HomePage(
+                            authService: authService,
+                            initialIndex: 2, // 2 对应「積分榜」tab
+                          ),
+                        ),
+                        (route) => false,  // 清掉所有旧的 route
+                      );
                     },
                     child: const Text('訂正'),
                   ),
                 ),
+
               ],
             ),
           ),
