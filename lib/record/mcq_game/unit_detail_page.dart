@@ -209,10 +209,13 @@ class CorrectionCard extends StatelessWidget {
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   decoration: BoxDecoration(
                     color: isCorrect
-                        ? Colors.green.withOpacity(0.2)
+                        ? isPicked
+                        ? Colors.green.withOpacity(0.9) // ✅ 正確且選到 → 深綠色
+                        : Colors.green.withOpacity(0.2) // ✅ 正確但沒選 → 淺綠色
                         : isPicked
-                        ? Colors.red.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.red.withOpacity(0.2)   // ❌ 選錯 → 淺紅色
+                        : Colors.grey.withOpacity(0.1), // 沒選中 → 淺灰
+
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ListTile(

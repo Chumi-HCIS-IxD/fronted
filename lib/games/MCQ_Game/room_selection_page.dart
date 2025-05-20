@@ -1,8 +1,13 @@
+// lib/games/MCQ_Game/room_selection_page.dart
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../services/auth_api_service.dart';
+import '../../theme/colors.dart';
+import '../../theme/dimens.dart';
 import 'create_room_page.dart';
+import 'host_monitor_page.dart';
 import 'room_page.dart';
 import 'api.dart';
 
@@ -10,258 +15,333 @@ const String teacherUid = 'a07fe81b-1f73-46ea-9d52-473017069c43';
 
 class RoomSelectionPage extends StatefulWidget {
   const RoomSelectionPage({Key? key}) : super(key: key);
-
   @override
   State<RoomSelectionPage> createState() => _RoomSelectionPageState();
 }
 
 class _RoomSelectionPageState extends State<RoomSelectionPage> {
-  final AuthApiService _authService = AuthApiService(baseUrl: baseUrl);
-  String? _currentUid;
+  final AuthApiService _auth = AuthApiService(baseUrl: baseUrl);
+  String? _uid;
   List<Map<String, dynamic>> rooms = [];
-  Map<String, String> hostNameCache = {}; // hostUid -> name
-  String searchText = '';
+  Map<String, String> hostName = {};
+  String filter = '';
   Map<String, dynamic>? selectedRoom;
   bool _loading = true;
+
+  bool get isTeacher => _uid == teacherUid;
 
   @override
   void initState() {
     super.initState();
-    _initUserAndRooms();
+    _loadData();
   }
 
-  Future<void> _initUserAndRooms() async {
+  Future<void> _loadData() async {
+    // 1) 取 UID
     try {
-      final profile = await _authService.fetchUserProfile();
-      _currentUid = profile?['uid'];
-    } catch (_) {
-      _currentUid = null;
-    }
-    await fetchRooms();
-    setState(() => _loading = false);
-  }
-
-  Future<void> fetchRooms() async {
+      final p = await _auth.fetchUserProfile();
+      _uid = p?['uid'] as String?;
+    } catch (_) {}
+    // 2) 取房間列表
     final token = await getToken();
     final res = await http.get(
       Uri.parse('$baseUrl/api/mcq/rooms'),
       headers: {'Authorization': 'Bearer $token'},
     );
     if (res.statusCode == 200) {
-      final list =
-      (json.decode(res.body)['rooms'] as List).cast<Map<String, dynamic>>();
-      setState(() => rooms = list);
-      await Future.wait(rooms.map((r) => getHostName(r['host'])));
+      rooms = (json.decode(res.body)['rooms'] as List)
+          .cast<Map<String, dynamic>>();
+      // 3) 取 host 名稱
+      await Future.wait(rooms.map((r) async {
+        final h = r['host'] as String;
+        if (!hostName.containsKey(h)) {
+          final r2 = await http.get(
+            Uri.parse('$baseUrl/api/users/profile?uid=$h'),
+            headers: {'Content-Type': 'application/json'},
+          );
+          if (r2.statusCode == 200) {
+            final d = json.decode(r2.body) as Map<String, dynamic>;
+            hostName[h] = d['name'] as String? ?? h;
+          } else {
+            hostName[h] = h;
+          }
+        }
+      }));
     }
+    setState(() => _loading = false);
   }
 
-  Future<String> getHostName(String uid) async {
-    if (hostNameCache.containsKey(uid)) return hostNameCache[uid]!;
+  Future<void> _enterRoom() async {
+    if (selectedRoom == null) return;
+    final id = selectedRoom!['roomId'] as String;
+    final limit = selectedRoom!['timeLimit'] as int;
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
-      headers: {'Content-Type': 'application/json'},
-    );
+    // 學生加入房間的邏輯
+    if (!isTeacher && _uid != null) {
+      final token = await getToken();
+      final r = await http.post(
+        Uri.parse('$baseUrl/api/mcq/rooms/$id/join'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'user': _uid}),
+      );
+      if (r.statusCode != 200 && mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('加入失敗：${r.statusCode}')));
+        return;
+      }
+    }
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      // 優先用 username，再 fallback name
-      final name = (data['name'] as String?)
-          ?? (data['username'] as String?)
-          ?? '未知使用者';
-      setState(() => hostNameCache[uid] = name);
-      return name;
+    // 確保頁面仍然 mounted 後再進行導航
+    if (!mounted) return;
+
+    // 根據角色導航到不同頁面
+    if (isTeacher) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HostGameMonitorPage(roomId: id),
+        ),
+      );
     } else {
-      return '未知使用者';
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RoomPage(roomId: id, initTimeLimit: limit),
+        ),
+      );
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
-    final isTeacher = _currentUid == teacherUid;
-    final filteredRooms = rooms
-        .where((room) => room['roomId'].toString().contains(searchText))
+    // 過濾
+    final filtered = rooms
+        .where((r) => r['roomId'].toString().contains(filter.trim()))
         .toList();
 
+    // 參數
+    const double headerHeight = 300;
+    const double overlap     = 20;
+    const double btnHeight   = 56;
+
     return Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: const Color(0xFFEAF6ED),
-      appBar: AppBar(
-        title: const Text('選擇題', style: TextStyle(color: Colors.green)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      backgroundColor: AppColors.primaryBG,
       body: SafeArea(
-        child: SingleChildScrollView(
-          // 左右 24，上方 16，底部隨鍵盤高度 + 24
-          padding: EdgeInsets.fromLTRB(
-            24,
-            16,
-            24,
-            MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-
-              // 建立／選房
-              GestureDetector(
-                onTap: isTeacher
-                    ? () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CreateRoomPage(hostUid: _currentUid!),
+        child: Stack(
+          children: [
+            // ─── HEADER ─────────────────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: headerHeight,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    'assets/images/mascot_header.png',
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    top: 15,
+                    left: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back,
+                          color: AppColors.primary),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                  );
-                }
-                    : null,
-                child: Row(
-                  children: [
-                    const CircleAvatar(radius: 24, backgroundColor: Colors.grey),
-                    const SizedBox(width: 12),
-                    Text(
-                      isTeacher ? '建立遊戲房間' : '請選擇房間進入',
-                      style: const TextStyle(fontSize: 16),
+                  ),
+                  Positioned(
+                    bottom: 230,
+                    left: 0,
+                    right: 0,
+                    child: Column(
+                      children: const [
+                        Text('選擇題',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        SizedBox(height: 4),
+                        Text('suan-tik-tê',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white)),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
 
-              const SizedBox(height: 24),
-
-              // 搜尋＋列表區
-              Container(
+            // ─── 主卡 & 列表 ────────────────
+            Positioned(
+              top: headerHeight + overlap,
+              left: Dimens.paddingPage,
+              right: Dimens.paddingPage,
+              bottom: btnHeight + Dimens.paddingPage * 1.5,
+              child: Container(
+                padding: const EdgeInsets.all(Dimens.paddingPage),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFB5D2BF),
-                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.primaryTint,
+                  borderRadius:
+                  BorderRadius.circular(Dimens.radiusCard),
                 ),
-                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // 搜尋框
+                    // 搜尋
                     TextField(
-                      onChanged: (v) => setState(() => searchText = v),
+                      onChanged: (v) => setState(() => filter = v),
                       decoration: InputDecoration(
                         hintText: '搜尋房間號碼',
                         prefixIcon: const Icon(Icons.search),
                         filled: true,
                         fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 0, horizontal: 16),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(
+                              Dimens.radiusButton),
+                          borderSide: BorderSide(
+                              color: AppColors.primaryTint),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                              Dimens.radiusButton),
+                          borderSide: BorderSide(
+                              color: AppColors.primaryTint),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                              Dimens.radiusButton),
+                          borderSide: BorderSide(
+                              color: AppColors.primary),
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
 
-                    // 房間列表
-                    ...filteredRooms.map((room) {
-                      final selected = selectedRoom?['roomId'] == room['roomId'];
-                      final hostName = hostNameCache[room['host']] ?? '讀取中...';
-                      return GestureDetector(
-                        onTap: () => setState(() => selectedRoom = room),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color:
-                            selected ? const Color(0xFF2F9E76) : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Text(
-                                  '房間號碼：${room['roomId']}',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: selected ? Colors.white : Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                    // 列表
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) =>
+                        const SizedBox(height: 12),
+                        itemBuilder: (_, i) {
+                          final r = filtered[i];
+                          final h = r['host'] as String;
+                          final name = hostName[h] ?? h;
+                          final sel = selectedRoom?['roomId'] ==
+                              r['roomId'];
+                          return GestureDetector(
+                            onTap: () =>
+                                setState(() => selectedRoom = r),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: sel
+                                    ? AppColors.primary
+                                    : Colors.white,
+                                borderRadius:
+                                BorderRadius.circular(
+                                    Dimens.radiusCard),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  '創建者：$hostName老師',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  textAlign: TextAlign.right,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color:
-                                    selected ? Colors.white : Colors.black54,
+                              child: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '房間號碼：${r['roomId']}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight:
+                                      FontWeight.w500,
+                                      color: sel
+                                          ? Colors.white
+                                          : Colors.black,
+
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '創建者：$name老師',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: sel
+                                          ? Colors.white70
+                                          : AppColors.grey700,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: 24),
-
-              // 進入房間按鈕（不被鍵盤蓋住）
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: selectedRoom == null ? null : () async {
-                    // 只有學生呼 join
-                    if (!isTeacher) {
-                      final token = await getToken();
-                      final res = await http.post(
-                        Uri.parse(
-                            '$baseUrl/api/mcq/rooms/${selectedRoom!['roomId']}/join'
-                        ),
-                        headers: {
-                          'Authorization': 'Bearer $token',
-                          'Content-Type': 'application/json',
-                        },
-                        body: jsonEncode({"user": _currentUid}),
-                      );
-                      if (res.statusCode != 200) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('加入房間失敗：${res.body}')),
-                        );
-                        return;
-                      }
-                    }
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => RoomPage(
-                          roomId: selectedRoom!['roomId'],
-                          initTimeLimit: selectedRoom!['timeLimit'] as int,
-                        ),
+            // ─── 按鈕 ───────────────────────
+            Positioned(
+              left: Dimens.paddingPage * 4,   // 48px 左邊空白
+              right: Dimens.paddingPage * 4,  // 48px 右邊空白
+              bottom: Dimens.paddingPage,
+              height: btnHeight,
+              child: ElevatedButton(
+                onPressed: isTeacher
+                // 老師不需要選房號，直接創建房間
+                    ? () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CreateRoomPage(hostUid: 'a07fe81b-1f73-46ea-9d52-473017069c43',),
+                    ),
+                  );
+                }
+                // 學生則要選中房間才能加入
+                    : selectedRoom == null
+                    ? null
+                    : _enterRoom,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryLight,
+                  shape: const StadiumBorder(),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isTeacher ? '創建房間' : '加入房間',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
                       ),
-                    );
-                  },
-                  child: const Text('進入房間'),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isTeacher ? 'tshang-kip pang-king' : 'ka-hip pang-king',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

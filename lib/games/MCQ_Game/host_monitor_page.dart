@@ -35,7 +35,21 @@ class _HostGameMonitorPageState extends State<HostGameMonitorPage> {
 
   Future<void> _fetchStatus() async {
     try {
-      debugPrint('🚀 開始抓取狀態...');
+      final token = await getToken();
+      final stRes = await http.get(
+        Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/status'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      final unitId = (json.decode(stRes.body)['unitId'] ?? '') as String;
+      var questionCount = 0;
+      if (unitId.isNotEmpty) {
+        final qRes = await http.get(
+          Uri.parse('$baseUrl/api/mcq/questionSets/$unitId/questions'),
+        );
+        if (qRes.statusCode == 200) {
+          questionCount = (json.decode(qRes.body)['questions'] as List).length;
+        }
+      }
 
       // 1. 拿玩家名單
       final playersRes = await http.get(Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/players'));
@@ -50,6 +64,13 @@ class _HostGameMonitorPageState extends State<HostGameMonitorPage> {
       debugPrint('📥 resultsRes.status=${resultsRes.statusCode}');
       final resultMap = jsonDecode(resultsRes.body) as Map<String, dynamic>;
       final submittedUids = (resultMap['results'] as List)
+          .where((e) {
+        final answersList = (e['answers'] as List<dynamic>? ?? []);
+        final answeredCnt = answersList
+            .where((m) => (m['selected'] as int) != -1)
+            .length;
+        return answeredCnt == questionCount;
+      })
           .map((e) => e['user'] as String)
           .toList();
       debugPrint('✅ 已繳交名單: $submittedUids');
@@ -69,26 +90,34 @@ class _HostGameMonitorPageState extends State<HostGameMonitorPage> {
 
       setState(() => students = studentsInfo);
 
-      // 4. 判斷是否全部完成
-      if (studentsInfo.isNotEmpty && studentsInfo.every((s) => s['submitted'] == true)) {
-        debugPrint('🎉 所有學生都完成了作答，跳轉至結果頁');
+      // 4. 再詢問 /status，確認後端已經把房間標成 finished
+      final statusRes = await http.get(
+        Uri.parse('$baseUrl/api/mcq/rooms/${widget.roomId}/status'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      final statusOk = statusRes.statusCode == 200;
+      final newStatus = statusOk
+          ? (jsonDecode(statusRes.body)['status'] as String? ?? '')
+          : '';
+
+      if (newStatus == 'finished') {
+        debugPrint('🎉 後端已標 finished → 跳結果頁');
         _pollingTimer?.cancel();
         if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => ResultPage(
+                score: 0, max: 0,
                 roomId: widget.roomId,
                 uid: 'host',
-                score: 0,
-                max: 0,
                 answers: const [],
               ),
             ),
           );
         }
       } else {
-        debugPrint('⏳ 尚有學生未完成');
+        debugPrint('⏳ 房間尚未 finished，繼續 polling');
       }
 
     } catch (e) {
