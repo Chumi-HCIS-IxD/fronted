@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../record/mcq_game/unit_selection_page.dart';
 import '../../services/auth_api_service.dart';
+import '../record/filtered_game/unit_selection_page.dart';
 
 class RecordTab extends StatelessWidget {
   final AuthApiService authService;
@@ -8,6 +9,7 @@ class RecordTab extends StatelessWidget {
   RecordTab({super.key, required this.authService}) {
     _gameRoutes = {
       "選擇題小遊戲": () => UnitSelectionPage(authService: authService),
+      "濾鏡小遊戲": () => Filter_UnitSelectionPage(authService: authService),
     };
   }
 

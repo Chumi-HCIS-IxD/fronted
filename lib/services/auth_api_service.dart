@@ -141,6 +141,40 @@ class AuthApiService {
     throw Exception('無法取得題目');
   }
 
+  Future<List<Map<String, dynamic>>> fetchFilterQuestions(String unitId) async {
+    final url = '$baseUrl/api/speak/speakQuestionSets/$unitId/questions';
+    print('[fetchFilterQuestions] GET: $url');
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    print('[fetchFilterQuestions] status: ${response.statusCode}');
+    print('[fetchFilterQuestions] body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      // 有時候回傳是一個 list，有時候是 map，這裡都能處理
+      if (data is List) {
+        // 直接回傳 list
+        return data.cast<Map<String, dynamic>>();
+      } else if (data is Map<String, dynamic>) {
+        // 回傳格式有 "questions" key
+        if (data['questions'] is List) {
+          return List<Map<String, dynamic>>.from(data['questions']);
+        } else {
+          // 假如直接就是題目陣列
+          return [];
+        }
+      } else {
+        throw Exception('API 回傳非預期格式');
+      }
+    }
+
+    throw Exception('無法取得題目：status=${response.statusCode}');
+  }
+
   Future<Map<String, dynamic>?> fetchRecordForUnit(String unitId) async {
     final uid = await getUid();
     if (uid == null) return null;
@@ -178,6 +212,26 @@ class AuthApiService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final records = data['record'];
+      if (records is List) {
+        return records.cast<Map<String, dynamic>>();
+      }
+    }
+
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllFilterRecords() async {
+    final uid = await getUid();
+    if (uid == null) return [];
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final records = data['speakRecord'];
       if (records is List) {
         return records.cast<Map<String, dynamic>>();
       }
