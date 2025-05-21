@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   final prefs = await SharedPreferences.getInstance();
   final uid = prefs.getString('uid');
   runApp(MyApp(isLoggedIn: uid != null));
