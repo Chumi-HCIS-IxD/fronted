@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+
 
 class AuthApiService {
   final String baseUrl;
@@ -256,6 +258,79 @@ class AuthApiService {
       print("⚠️ updateUserProfile status: ${response.statusCode}");
       print("⚠️ updateUserProfile body: ${response.body}");
       return '更新失敗';
+    }
+  }
+    /// 語音辨識 (ASR)
+  /// [filePath]：本地 wav 檔案路徑
+  /// 回傳辨識後的句子，失敗則拋出 Exception
+  Future<String> recognizeAudio(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      throw Exception('音檔不存在：$filePath');
+    }
+
+    // 讀取檔案並做 Base64 編碼
+    final rawBytes = await file.readAsBytes();
+    final audioBase64 = base64Encode(rawBytes);
+
+    // 組 JSON body
+    final body = jsonEncode({
+      'lang': 'TA and ZH Medical V1',
+      'token': '2025@test@asr',
+      'audio': audioBase64,
+    });
+
+    // 呼叫後端 proxy endpoint
+    final uri = Uri.parse('$baseUrl/proxy');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['sentence'] != null) {
+        return data['sentence'] as String;
+      } else {
+        throw Exception('回傳格式錯誤，找不到 sentence');
+      }
+    } else {
+      // 嘗試解析錯誤訊息
+      String errMsg = '識別失敗（status=${response.statusCode}）';
+      try {
+        final err = jsonDecode(response.body);
+        if (err['error'] != null) errMsg = err['error'];
+      } catch (_) {}
+      throw Exception(errMsg);
+    }
+  }
+  Future<bool> submitSpeakResults(String unitId, List<Map<String, dynamic>> results) async {
+    // 先取出目前的使用者 uid
+    final uid = await getUid();
+    if (uid == null) {
+      print('Error: no uid stored');
+      return false;
+    }
+
+    final uri = Uri.parse('$baseUrl/api/speak/speakQuestionSets/$unitId/submit');
+    final payload = {
+      'user': uid,
+      'results': results,
+    };
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      print('❌ submitSpeakResults failed: '
+            'status=${response.statusCode}, body=${response.body}');
+      return false;
     }
   }
 }
