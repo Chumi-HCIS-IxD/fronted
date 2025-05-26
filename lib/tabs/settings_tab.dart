@@ -2,18 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../pages/edit_profile_page.dart';
 import '../services/auth_api_service.dart';
+import '../pages/login_page.dart';
 
 class SettingsTab extends StatelessWidget {
   final AuthApiService authService;
   const SettingsTab({super.key, required this.authService});
 
   Future<void> _logout(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('userToken');
+    await authService.logout();
     if (context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPage(authService: authService),
+        ),
+            (_) => false,
+      );
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {

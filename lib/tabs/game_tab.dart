@@ -92,6 +92,7 @@ class _GameTabState extends State<GameTab> {
                       builder: (_) => const RoomSelectionPage(),
                       ),
                     );
+                    return;
                   }
                   if(originalIndex == 1){
                     // 跳到filter單元選擇列表
@@ -101,6 +102,7 @@ class _GameTabState extends State<GameTab> {
                         builder: (_) => UnitSelectionPage(),
                       ),
                     );
+                    return;
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('$title 尚未開放')),

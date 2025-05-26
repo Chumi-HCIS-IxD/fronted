@@ -1,15 +1,28 @@
 // lib/pages/settings_tab.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'login_page.dart';
+import '../services/auth_api_service.dart';
 
 class SettingsTab extends StatelessWidget {
-  const SettingsTab({Key? key}) : super(key: key);
+  final AuthApiService authService; // ✅ 加這行
 
-  Future<void> _logout(BuildContext ctx) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('userToken');
-    Navigator.pushNamedAndRemoveUntil(ctx, '/login', (_) => false);
+  const SettingsTab({Key? key, required this.authService}) : super(key: key); // ✅ 傳進來
+
+
+  Future<void> _logout(BuildContext context) async {
+    await authService.logout();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPage(authService: authService),
+        ),
+            (_) => false,
+      );
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {

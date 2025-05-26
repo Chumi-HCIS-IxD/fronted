@@ -33,31 +33,52 @@ class _UnitSelectionPageState extends State<UnitSelectionPage> {
   ];
 
   final icons = ['🍐', '🍔', '📷', '🎯', '📚', '🧠'];
-
+  bool isLoading = true;
   @override
   void initState() {
     super.initState();
     widget.authService.fetchAllRecords().then((records) {
-      setState(() => recentRecords = records.length <= 5
-          ? records.reversed.toList()
-          : records.sublist(records.length - 5).reversed.toList());
-
+      setState(() {
+        recentRecords = records.length <= 5
+            ? records.reversed.toList()
+            : records.sublist(records.length - 5).reversed.toList();
+        isLoading = false; // 資料抓完
+      });
       print('📘 共抓到 ${records.length} 筆作答紀錄');
+      print(recentRecords);
+    }).catchError((e) {
+      print('❌ 抓紀錄失敗: $e');
+      setState(() => isLoading = false);
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
-    if (recentRecords.isEmpty) {
+    if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (recentRecords.isEmpty && !isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('選擇題紀錄'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Text('尚無選擇題遊戲紀錄', style: TextStyle(fontSize: 18)),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5E5),
       appBar: AppBar(
+
         title: const Text('選擇題紀錄'),
         centerTitle: true,
       ),

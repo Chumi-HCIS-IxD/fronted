@@ -33,31 +33,56 @@ class _UnitSelectionPageState extends State<Filter_UnitSelectionPage> {
   ];
 
   final icons = ['🍐', '🍔', '📷', '🎯', '📚', '🧠'];
+  bool isLoading = true; // 加上 loading 狀態
 
   @override
   void initState() {
     super.initState();
     widget.authService.fetchAllFilterRecords().then((records) {
-      setState(() => recentRecords = records.length <= 5
-          ? records.reversed.toList()
-          : records.sublist(records.length - 5).reversed.toList());
+      setState(() {
+        recentRecords = records.length <= 5
+            ? records.reversed.toList()
+            : records.sublist(records.length - 5).reversed.toList();
+        isLoading = false; // 資料抓完
+      });
 
       print('📘 共抓到 ${records.length} 筆作答紀錄');
       print(recentRecords);
+    }).catchError((e) {
+      print('❌ 抓紀錄失敗: $e');
+      setState(() => isLoading = false);
     });
   }
 
+
   @override
   Widget build(BuildContext context) {
-    if (recentRecords.isEmpty) {
+    if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
+    if (recentRecords.isEmpty && !isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('濾鏡紀錄'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Text('尚無濾鏡遊戲紀錄', style: TextStyle(fontSize: 18)),
+        ),
+      );
+    }
+
+
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5E5),
       appBar: AppBar(
+        automaticallyImplyLeading: true,
         title: const Text('濾鏡紀錄'),
         centerTitle: true,
       ),

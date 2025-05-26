@@ -2,85 +2,91 @@ import 'package:flutter/material.dart';
 import '../../services/auth_api_service.dart';
 import 'filter_game_page.dart';
 
-class UnitSelectionPage extends StatelessWidget {
-  final authService = AuthApiService(baseUrl: 'http://140.116.245.157:5019');
-  UnitSelectionPage({super.key});
+class SpeakUnit {
+  final String unitId;
+  final String unitTitle;
 
-  // 單元清單：主題/拼音/emoji/icon
-  final List<Map<String, String>> units = const [
-    {
-      'id': 'Unit_1',
-      'title': '臺．台灣水果',
-      'subtitle': 'Tâi-uân-tsuí-kó',
-      'icon': '🍇',
-    },
-    {
-      'id': 'Unit_2',
-      'title': '弍．吃飯對話',
-      'subtitle': 'tsia̍h-pn̄g-tùi-uē',
-      'icon': '🍳',
-    },
-    {
-      'id': 'Unit_3',
-      'title': '参．台灣昆蟲',
-      'subtitle': 'Tâi-uân-khun-thiông',
-      'icon': '🦋',
-    },
-    {
-      'id': 'Unit_4',
-      'title': '肆．海底生物',
-      'subtitle': 'hái-té-sing-būt',
-      'icon': '🦀',
-    },
-    {
-      'id': 'Unit_5',
-      'title': '伍．兒時童玩',
-      'subtitle': 'gín-á-ê-guân-khù',
-      'icon': '🏀',
-    },
-    {
-      'id': 'Unit_6',
-      'title': '陆．日常服飾',
-      'subtitle': 'jīt-siōng-hok-sik',
-      'icon': '🧢',
-    },
-  ];
+  SpeakUnit({required this.unitId, required this.unitTitle});
+
+  factory SpeakUnit.fromJson(Map<String, dynamic> json) {
+    return SpeakUnit(
+      unitId: json['unitId'],
+      unitTitle: json['unitTitle'],
+    );
+  }
+}
+
+class UnitSelectionPage extends StatefulWidget {
+  const UnitSelectionPage({super.key});
+
+  @override
+  State<UnitSelectionPage> createState() => _UnitSelectionPageState();
+}
+
+class _UnitSelectionPageState extends State<UnitSelectionPage> {
+  final authService = AuthApiService(baseUrl: 'http://140.116.245.157:5019');
+  List<SpeakUnit> units = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUnits();
+  }
+
+  void fetchUnits() async {
+    try {
+      final response = await authService.get('/api/speak/speakQuestionSets');
+      final data = response['speakSets'] as List<dynamic>;
+      final loadedUnits = data.map((json) => SpeakUnit.fromJson(json)).toList();
+      setState(() {
+        units = loadedUnits;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('❌ 取得單元失敗: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  String getEmojiForUnit(String unitId) {
+    switch (unitId) {
+      case 'Unit_1': return '🍇';
+      case 'Unit_2': return '🍳';
+      case 'Unit_3': return '🦋';
+      case 'Unit_4': return '🦀';
+      case 'Unit_5': return '🏀';
+      case 'Unit_6': return '🧢';
+      default: return '📘';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF82C8D9), // 粉藍底色
+      backgroundColor: const Color(0xFF82C8D9),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          '練說話',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
-        ),
+        title: const Text('練說話', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22)),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Column(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           const SizedBox(height: 8),
-          const Text(
-            'Lian kóng-uē',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w400),
-          ),
+          const Text('Lian kóng-uē', style: TextStyle(color: Colors.white, fontSize: 16)),
           const SizedBox(height: 8),
-          // 吉祥物圖案（可換成Image.asset或用emoji暫代）
           Container(
             height: 140,
             margin: const EdgeInsets.symmetric(vertical: 8),
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // 替代吉祥物的 emoji 或圖片
                 const Text('🌟', style: TextStyle(fontSize: 100)),
-                Positioned(
-                  right: 50, top: 24,
-                  child: Icon(Icons.music_note, color: Colors.white, size: 36),
-                ),
+                const Positioned(right: 50, top: 24, child: Icon(Icons.music_note, color: Colors.white, size: 36)),
               ],
             ),
           ),
@@ -96,13 +102,14 @@ class UnitSelectionPage extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final unit = units[index];
+                  final emoji = getEmojiForUnit(unit.unitId);
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => FilterGamePage(
-                            unitId: unit['id']!,
+                            unitId: unit.unitId,
                             authService: authService,
                           ),
                         ),
@@ -123,16 +130,10 @@ class UnitSelectionPage extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Text(unit['icon']!, style: const TextStyle(fontSize: 38)),
+                          Text(emoji, style: const TextStyle(fontSize: 38)),
                           const SizedBox(width: 18),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(unit['title']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                Text(unit['subtitle']!, style: const TextStyle(fontSize: 15, color: Colors.black54)),
-                              ],
-                            ),
+                            child: Text(unit.unitTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                           ),
                           const Icon(Icons.arrow_forward_ios, size: 20, color: Colors.black26),
                         ],
@@ -148,3 +149,4 @@ class UnitSelectionPage extends StatelessWidget {
     );
   }
 }
+
