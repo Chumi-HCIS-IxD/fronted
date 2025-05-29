@@ -1,5 +1,7 @@
+//filtered_game/unit_selection_page
 import 'package:flutter/material.dart';
 import '../../services/auth_api_service.dart';
+import '../../theme/colors.dart';
 import 'filter_game_page.dart';
 
 class UnitSelectionPage extends StatelessWidget {
@@ -10,131 +12,166 @@ class UnitSelectionPage extends StatelessWidget {
   final List<Map<String, String>> units = const [
     {
       'id': 'Unit_1',
-      'title': '臺．台灣水果',
+      'title': '壹．台灣水果',
       'subtitle': 'Tâi-uân-tsuí-kó',
-      'icon': '🍇',
+      'icon': 'assets/images/one.png',
     },
     {
       'id': 'Unit_2',
-      'title': '弍．吃飯對話',
+      'title': '貳．吃飯對話',
       'subtitle': 'tsia̍h-pn̄g-tùi-uē',
-      'icon': '🍳',
+      'icon': 'assets/images/two.png',
     },
     {
       'id': 'Unit_3',
       'title': '参．台灣昆蟲',
       'subtitle': 'Tâi-uân-khun-thiông',
-      'icon': '🦋',
+      'icon': 'assets/images/three.png',
     },
     {
       'id': 'Unit_4',
       'title': '肆．海底生物',
       'subtitle': 'hái-té-sing-būt',
-      'icon': '🦀',
+      'icon': 'assets/images/four.png',
     },
     {
       'id': 'Unit_5',
       'title': '伍．兒時童玩',
       'subtitle': 'gín-á-ê-guân-khù',
-      'icon': '🏀',
+      'icon': 'assets/images/five.png',
     },
     {
       'id': 'Unit_6',
-      'title': '陆．日常服飾',
+      'title': '陸．日常服飾',
       'subtitle': 'jīt-siōng-hok-sik',
-      'icon': '🧢',
+      'icon': 'assets/images/six.png',
     },
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF82C8D9), // 粉藍底色
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          '練說話',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
-        ),
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      // 整體底色為淺綠
+      backgroundColor: AppColors.primaryLight,
       body: Column(
         children: [
-          const SizedBox(height: 8),
-          const Text(
-            'Lian kóng-uē',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w400),
-          ),
-          const SizedBox(height: 8),
-          // 吉祥物圖案（可換成Image.asset或用emoji暫代）
-          Container(
-            height: 140,
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // 替代吉祥物的 emoji 或圖片
-                const Text('🌟', style: TextStyle(fontSize: 100)),
-                Positioned(
-                  right: 50, top: 24,
-                  child: Icon(Icons.music_note, color: Colors.white, size: 36),
+          const SizedBox(height: 0),
+          // Header 區塊：背景圖與標題文字
+          Stack(
+            children: [
+              // 背景圖，只覆蓋上方 250 高度
+              Image.asset(
+                'assets/images/star_fruit_header.png',
+                width: double.infinity,
+                height: 320,
+                fit: BoxFit.cover,
+              ),
+              // 返回鍵與標題置中疊加
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // 返回按鈕
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const Expanded(child: SizedBox()),
+                      // 標題文字
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            '練說話',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Lián kóng-uē',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Expanded(child: SizedBox()),
+                      const SizedBox(width: 28),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           Expanded(
             child: Container(
               decoration: const BoxDecoration(
-                color: Color(0xFFE5F3EE),
+                color: AppColors.primaryTint,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
               ),
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 itemCount: units.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final unit = units[index];
                   return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => FilterGamePage(
-                            unitId: unit['id']!,
-                            authService: authService,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          )
-                        ],
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FilterGamePage(unitId: unit['id']!, authService: authService),
                       ),
-                      child: Row(
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
-                          Text(unit['icon']!, style: const TextStyle(fontSize: 38)),
-                          const SizedBox(width: 18),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(unit['title']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                Text(unit['subtitle']!, style: const TextStyle(fontSize: 15, color: Colors.black54)),
-                              ],
-                            ),
+                          // 圖片全底
+                          Image.asset(
+                            unit['icon']!,
+                            // width: double.infinity,
+                            height: 80,
+                            fit: BoxFit.cover,
                           ),
-                          const Icon(Icons.arrow_forward_ios, size: 20, color: Colors.black26),
+                          // 半透明遮罩提升文字可讀性
+                          Container(
+                            // width: double.infinity,
+                            height: 80,
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                          // 文本置中
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                unit['title']!,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.grey900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                unit['subtitle']!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.grey700,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),

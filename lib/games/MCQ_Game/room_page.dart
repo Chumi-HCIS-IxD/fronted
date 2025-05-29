@@ -658,7 +658,7 @@ class _RoomPageState extends State<RoomPage> {
             child: Opacity(
               opacity: 0.1,
               child: Image.asset(
-                'assets/images/mascot_header.png',
+                'assets/images/wax_apple_header.png',
                 fit: BoxFit.cover,
               ),
             ),
@@ -788,7 +788,7 @@ class _RoomPageState extends State<RoomPage> {
                           fontWeight:
                           FontWeight.bold)),
                   const SizedBox(height: 4),
-                  const Text('一些說明…',
+                  const Text('蓮霧仔是負責保管最古老的台語詞典，但由於語言能量減弱，詞典上的字開始模糊消失。為了重建詞庫，精靈們設計了一場「聽力挑戰賽」，邀請大家來比比誰最懂台語。只要選對越多題，就能找尋更多記憶碎片！',
                       style: TextStyle(fontSize: 12)),
                   const SizedBox(height: 80),
                   Text('已加入：${playersName.length}',

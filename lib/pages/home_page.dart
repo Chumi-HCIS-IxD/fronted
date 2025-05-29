@@ -191,7 +191,6 @@ class _HomePageState extends State<HomePage> {
   late int _currentIndex;
   late List<Widget> _pages;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  // 設計稿常數
   static const double headerImgHeight = 380.0;
   static const double headerImgOffsetY = 30.0;
   static const double circleDiameter = 260.0;
@@ -212,179 +211,148 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  Widget build(BuildContext ctx) {
-    final sw = MediaQuery.of(ctx).size.width;
-    // 白卡上緣 Y
+  Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
     final whiteTop = headerImgOffsetY + headerImgHeight - overlap;
     return Scaffold(
       key: _scaffoldKey,
+      endDrawer: ProfileDrawer(authService: widget.authService),
       backgroundColor: AppColors.primary,
-      drawer: ProfileDrawer(authService: widget.authService),
       body: _currentIndex == 0
-          ? Stack(
-        children: [
-          // header 圖片
-          Positioned(
-            top: headerImgOffsetY,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              'assets/images/lobby.png',
-              height: headerImgHeight,
-              fit: BoxFit.cover,
-            ),
+          ? _buildHomeStack(sw, whiteTop)
+          : _pages[_currentIndex - 1],
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _currentIndex,
+        onTap: (i) => setState(() => _currentIndex = i),
+        backgroundColor: Colors.white,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        items: [
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icon/home_off.png', width: 24, height: 24),
+            activeIcon: Image.asset('assets/icon/home_on.png', width: 24, height: 24),
+            label: '',
           ),
-          // 白卡背景
-          Positioned(
-            top: whiteTop,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-            ),
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icon/game_off.png', width: 24, height: 24),
+            activeIcon: Image.asset('assets/icon/game_on.png', width: 24, height: 24),
+            label: '',
           ),
-          // 圓餅圖
-          Positioned(
-            top: headerImgOffsetY + headerImgHeight / 2,
-            left: (sw - circleDiameter) / 2,
-            child: CustomPaint(
-              size: Size(circleDiameter, circleDiameter),
-              painter: _PieChartPainter(),
-            ),
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icon/record_off.png', width: 24, height: 24),
+            activeIcon: Image.asset('assets/icon/record_on.png', width: 24, height: 24),
+            label: '',
           ),
-          // 進度卡，窄寬度並加三角
-          Positioned(
-            top: whiteTop + circleDiameter / 2 + cardGap,
-            left: 60,
-            right: 60,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(Dimens.radiusCard),
-                    boxShadow: const [
-                      BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 6,
-                          offset: Offset(0, -2)),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('上次進度',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: const [
-                          Text('選擇題遊戲', style: TextStyle(fontSize: 14)),
-                          SizedBox(width: 20),
-                          Text('單元一',
-                              style: TextStyle(
-                                  fontSize: 12, color: AppColors.grey700)),
-                          Spacer(),
-                          Icon(Icons.calendar_today,
-                              size: 14, color: AppColors.grey700),
-                          SizedBox(width: 8),
-                          Text('2025/04/06', style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Container(
-                          height: 6,
-                          color: AppColors.grey300,
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: 0.8,
-                            child:
-                            Container(color: AppColors.accentGreen),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // 三角標
-                Positioned(
-                  bottom: -10,      // 若改大，也要微調
-                  right: 16,
-                  child: PhysicalShape(
-                    color: Colors.white,         // 三角底色
-                    elevation: 4,                // 陰影深度
-                    shadowColor: Colors.black26, // 陰影顏色
-                    clipper: _TriangleClipper(), // 使用 clipper 畫形狀
-                    child: SizedBox(
-                      width: 24,
-                      height: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 星星
-          Positioned(
-            top: whiteTop + circleDiameter / 2 + cardGap + starOffsetY,
-            right: 16 + starOffsetX,
-            child: Image.asset(
-              'assets/images/star.png',
-              width: 100,
-              height: 100,
-            ),
-          ),
-          // AppBar icon
-          Positioned(
-            top: headerImgOffsetY + 30,
-            right: 16,
-            child: IconButton(
-              icon: Image.asset(
-                'assets/icon/profile.png',
-                width: 32,
-                height: 32,
-              ),
-              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-            ),
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/icon/settings_off.png', width: 24, height: 24),
+            activeIcon: Image.asset('assets/icon/settings_on.png', width: 24, height: 24),
+            label: '',
           ),
         ],
-      )
-          : _pages[_currentIndex - 1],
-    bottomNavigationBar: _buildBottomNav(),
+      ),
     );
   }
 
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: _currentIndex,
-      onTap: (i) => setState(() => _currentIndex = i),
-      selectedItemColor: AppColors.primary,
-      unselectedItemColor: AppColors.grey500,
-      backgroundColor: Colors.white,
-      items: [
-        BottomNavigationBarItem(
-          icon: Image.asset('assets/icon/home_icon.png', width: 24, height: 24),
-          label: '首頁',
+  Widget _buildHomeStack(double sw, double whiteTop) {
+    return Stack(
+      children: [
+        Positioned(
+          top: headerImgOffsetY,
+          left: 0,
+          right: 0,
+          child: Image.asset('assets/images/lobby.png', height: headerImgHeight, fit: BoxFit.cover),
         ),
-        BottomNavigationBarItem(
-          icon: Image.asset('assets/icon/game_icon.png', width: 24, height: 24),
-          label: '小遊戲',
+        Positioned(
+          top: whiteTop,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+          ),
         ),
-        BottomNavigationBarItem(
-          icon: Image.asset('assets/icon/record_icon.png', width: 24, height: 24),
-          label: '積分榜',
+        Positioned(
+          top: headerImgOffsetY + headerImgHeight / 2,
+          left: (sw - circleDiameter) / 2,
+          child: CustomPaint(
+            size: Size(circleDiameter, circleDiameter),
+            painter: _PieChartPainter(),
+          ),
         ),
-        BottomNavigationBarItem(
-          icon: Image.asset('assets/icon/settings_icon.png', width: 24, height: 24),
-          label: '設定',
+        Positioned(
+          top: whiteTop + circleDiameter / 2 + cardGap,
+          left: 60,
+          right: 60,
+          child: _buildProgressCard(),
+        ),
+        Positioned(
+          top: whiteTop + circleDiameter / 2 + cardGap + starOffsetY,
+          right: 16 + starOffsetX,
+          child: Image.asset('assets/images/star.png', width: 100, height: 100),
+        ),
+        Positioned(
+          top: headerImgOffsetY + 66,
+          right: 36,
+          child: GestureDetector(
+            onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+            child: Image.asset('assets/icon/profile.png', width: 32, height: 32),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressCard() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(Dimens.radiusCard),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('上次進度', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(children: const [
+                Text('選擇題遊戲', style: TextStyle(fontSize: 14)),
+                SizedBox(width: 20),
+                Text('單元一', style: TextStyle(fontSize: 12, color: AppColors.grey700)),
+                Spacer(),
+                Icon(Icons.calendar_today, size: 14, color: AppColors.grey700),
+                SizedBox(width: 8),
+                Text('2025/04/06', style: TextStyle(fontSize: 12)),
+              ]),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Container(
+                  height: 6,
+                  color: AppColors.grey300,
+                  child: FractionallySizedBox(alignment: Alignment.centerLeft, widthFactor: 0.8, child: Container(color: AppColors.accentGreen)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: -10,
+          right: 16,
+          child: PhysicalShape(
+            color: Colors.white,
+            elevation: 4,
+            shadowColor: Colors.black26,
+            clipper: _TriangleClipper(),
+            child: const SizedBox(width: 24, height: 12),
+          ),
         ),
       ],
     );
@@ -394,35 +362,11 @@ class _HomePageState extends State<HomePage> {
 class _TriangleClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    return Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..close();
+    return Path()..moveTo(0, 0)..lineTo(size.width, 0)..lineTo(size.width / 2, size.height)..close();
   }
 
   @override
   bool shouldReclip(covariant CustomClipper<Path> old) => false;
-}
-
-/// 畫白色三角的小 Painter
-class _TrianglePainter extends CustomPainter {
-  final Color color;
-  _TrianglePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
 class _PieChartPainter extends CustomPainter {
@@ -431,31 +375,30 @@ class _PieChartPainter extends CustomPainter {
     final center = Offset(s.width / 2, s.height / 2);
     final radius = s.width / 2;
     final paint = Paint()..style = PaintingStyle.fill;
-
     final segments = [
       {'label': '選擇題遊戲', 'value': 0.35, 'color': AppColors.primaryLight},
       {'label': '濾鏡遊戲', 'value': 0.25, 'color': AppColors.primaryTint},
-      {'label': '誰是臥底', 'value': 0.4, 'color': AppColors.accentGold},
+      {'label': '誰是臥底', 'value': 0.40, 'color': AppColors.accentGold},
     ];
-
     double startAngle = -pi / 2;
     const textStyle = TextStyle(fontSize: 14, color: AppColors.grey700);
 
     for (var seg in segments) {
       final sweep = 2 * pi * (seg['value'] as double);
       paint.color = seg['color'] as Color;
-      c.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle,
-          sweep, true, paint);
+      c.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, sweep, true, paint);
 
+      // Draw label
       final labelAngle = startAngle + sweep / 2;
-      final labelR = radius * 0.75;
-      final lx = center.dx + cos(labelAngle) * labelR;
-      final ly = center.dy + sin(labelAngle) * labelR;
+      final labelRadius = radius * 0.7;
+      final dx = center.dx + cos(labelAngle) * labelRadius;
+      final dy = center.dy + sin(labelAngle) * labelRadius;
       final tp = TextPainter(
         text: TextSpan(text: seg['label'] as String, style: textStyle),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(c, Offset(lx - tp.width / 2, ly - tp.height / 2));
+      tp.paint(c, Offset(dx - tp.width / 2, dy - tp.height / 2));
+
       startAngle += sweep;
     }
   }
@@ -463,4 +406,3 @@ class _PieChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
-

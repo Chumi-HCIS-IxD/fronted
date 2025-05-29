@@ -27,6 +27,7 @@ environment:
 # dependencies can be manually updated by changing the version numbers below to
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
+
 dependencies:
   flutter:
     sdk: flutter
@@ -40,6 +41,12 @@ dependencies:
   audioplayers: ^6.4.0
   image_picker: ^1.0.4
   intl: ^0.18.1
+  camera: ^0.10.0+4
+  record: ^4.4.1
+  path_provider: ^2.0.14
+  dotted_border: ^2.0.0
+  characters: ^1.2.0
+  video_player: ^2.6.0
 
 dev_dependencies:
   flutter_test:
@@ -57,11 +64,29 @@ flutter:
   assets:
     - assets/images/
     - assets/icon/
-    - assets/icon/home_icon.png
-    - assets/icon/game_icon.png
-    - assets/icon/record_icon.png
-    - assets/icon/settings_icon.png
+    - assets/icon/home_on.png
+    - assets/icon/home_off.png
+    - assets/icon/game_on.png
+    - assets/icon/game_off.png
+    - assets/icon/record_on.png
+    - assets/icon/record_off.png
+    - assets/icon/settings_on.png
+    - assets/icon/settings_off.png
     - assets/images/login.png
+    - assets/images/game_star.png
+    - assets/images/game_peach.png
+    - assets/images/star_fruit_header.png
+    - assets/images/one.png
+    - assets/images/two.png
+    - assets/images/three.png
+    - assets/images/four.png
+    - assets/images/five.png
+    - assets/images/six.png
+    - assets/images/record_header.png
+    - assets/images/mcq.png
+    - assets/images/speak.png
+    - assets/images/chat.png
+
 
   # To add assets to your application, add an assets section, like this:
   # assets:

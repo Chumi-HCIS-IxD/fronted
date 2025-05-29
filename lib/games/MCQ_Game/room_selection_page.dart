@@ -148,7 +148,7 @@ class _RoomSelectionPageState extends State<RoomSelectionPage> {
                 fit: StackFit.expand,
                 children: [
                   Image.asset(
-                    'assets/images/mascot_header.png',
+                    'assets/images/wax_apple_header.png',
                     fit: BoxFit.cover,
                   ),
                   Positioned(

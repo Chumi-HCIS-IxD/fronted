@@ -1196,7 +1196,9 @@ PODS:
   - BoringSSL-GRPC/Implementation (0.0.37):
     - BoringSSL-GRPC/Interface (= 0.0.37)
   - BoringSSL-GRPC/Interface (0.0.37)
-  - cloud_firestore (5.6.7):
+  - camera_avfoundation (0.0.1):
+    - Flutter
+  - cloud_firestore (5.6.8):
     - Firebase/Firestore (= 11.10.0)
     - firebase_core
     - Flutter
@@ -1208,11 +1210,11 @@ PODS:
   - Firebase/Firestore (11.10.0):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 11.10.0)
-  - firebase_auth (5.5.3):
+  - firebase_auth (5.5.4):
     - Firebase/Auth (= 11.10.0)
     - firebase_core
     - Flutter
-  - firebase_core (3.13.0):
+  - firebase_core (3.13.1):
     - Firebase/CoreOnly (= 11.10.0)
     - Flutter
   - FirebaseAppCheckInterop (11.12.0)
@@ -1382,19 +1384,27 @@ PODS:
     - Flutter
     - FlutterMacOS
   - RecaptchaInterop (101.0.0)
+  - record (0.0.1):
+    - Flutter
   - shared_preferences_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - video_player_avfoundation (0.0.1):
     - Flutter
     - FlutterMacOS
 
 DEPENDENCIES:
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/ios`)
+  - camera_avfoundation (from `.symlinks/plugins/camera_avfoundation/ios`)
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - Flutter (from `Flutter`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - record (from `.symlinks/plugins/record/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
 
 SPEC REPOS:
   https://github.com/CocoaPods/Specs.git:
@@ -1422,6 +1432,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   audioplayers_darwin:
     :path: ".symlinks/plugins/audioplayers_darwin/ios"
+  camera_avfoundation:
+    :path: ".symlinks/plugins/camera_avfoundation/ios"
   cloud_firestore:
     :path: ".symlinks/plugins/cloud_firestore/ios"
   firebase_auth:
@@ -1434,17 +1446,22 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/image_picker_ios/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  record:
+    :path: ".symlinks/plugins/record/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  video_player_avfoundation:
+    :path: ".symlinks/plugins/video_player_avfoundation/darwin"
 
 SPEC CHECKSUMS:
   abseil: a05cc83bf02079535e17169a73c5be5ba47f714b
   audioplayers_darwin: 877d9a4d06331c5c374595e46e16453ac7eafa40
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
-  cloud_firestore: d959b9b44fb0619e8c88e1b7436d3b1d36b4984e
+  camera_avfoundation: adb0207d868b2d873e895371d88448399ab78d87
+  cloud_firestore: 418c4911a2e4f1c38ac6dbb838ef19cdc32a515f
   Firebase: 1fe1c0a7d9aaea32efe01fbea5f0ebd8d70e53a2
-  firebase_auth: 3f532201cbdc7cd6dfc3bfa89affc0c294111e20
-  firebase_core: 432718558359a8c08762151b5f49bb0f093eb6e0
+  firebase_auth: 519455ee22dea9cb8b4e05d7821f93f77db88882
+  firebase_core: 3c2f323cae65c97a636a05a23b17730ef93df2cf
   FirebaseAppCheckInterop: 73b173e5ec45192e2d522ad43f526a82ad10b852
   FirebaseAuth: c4146bdfdc87329f9962babd24dae89373f49a32
   FirebaseAuthInterop: b583210c039a60ed3f1e48865e1f3da44a796595
@@ -1464,7 +1481,9 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  record: cae05d8dd3cdb1dea3511b20e5a5811a1ae00d0d
   shared_preferences_foundation: fcdcbc04712aee1108ac7fda236f363274528f78
+  video_player_avfoundation: 7c6c11d8470e1675df7397027218274b6d2360b3
 
 PODFILE CHECKSUM: ac1d5d729a72e2ed5d393d2fabdd6be450cff73a
 

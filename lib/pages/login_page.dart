@@ -163,15 +163,6 @@ class _LoginPageState extends State<LoginPage> {
                   color: AppColors.grey900,
                 ),
               ),
-              // SizedBox(height: 5),
-              // Text(
-              //   '登入',
-              //   style: TextStyle(
-              //     fontSize: 32,
-              //     fontWeight: FontWeight.w900,
-              //     color: AppColors.primaryDark,
-              //   ),
-              // ),
             ],
           ),
         ),

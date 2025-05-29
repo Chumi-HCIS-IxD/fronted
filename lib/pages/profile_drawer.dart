@@ -218,17 +218,11 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
             : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 50),
             // ← 返回鈕
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppColors.grey700),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  const Spacer(),
-                ],
               ),
             ),
 
@@ -311,6 +305,14 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 24),
+
+            const Divider(
+              thickness: 1,
+              indent: 24,
+              endIndent: 24,
+              color: AppColors.grey300,
             ),
             const SizedBox(height: 24),
 
