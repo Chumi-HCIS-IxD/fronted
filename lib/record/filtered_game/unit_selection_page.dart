@@ -90,14 +90,14 @@ class _UnitSelectionPageState extends State<Filter_UnitSelectionPage> {
         children: [
           const SizedBox(height: 16),
           const Center(
-            child: Column(
-              children: [
-                Icon(Icons.image_outlined, size: 80, color: Colors.grey),
-                SizedBox(height: 8),
-                Text("主視覺", style: TextStyle(fontSize: 16, color: Colors.black54)),
-              ],
+            child: Image(
+              image: AssetImage('assets/images/filter_record.png'),
+              width: 160, // ⬅️ 可調整你想要的尺寸
+              height: 160,
+              fit: BoxFit.contain,
             ),
           ),
+
           const SizedBox(height: 16),
           Expanded(
             child: Container(

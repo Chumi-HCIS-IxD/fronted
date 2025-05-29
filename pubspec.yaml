@@ -44,6 +44,8 @@ dependencies:
   audioplayers: ^6.4.0
   image_picker: ^1.0.4
   intl: ^0.18.1
+#  flutter_screen_recording: ^1.0.4
+#  permission_handler: ^11.3.0
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +57,7 @@ flutter:
   assets:
     - assets/images/
     - assets/images/star.png
+    - assets/images/濾鏡遊戲1.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

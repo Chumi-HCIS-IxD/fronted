@@ -30,6 +30,11 @@
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
+		<key>NSCameraUsageDescription</key>
+        <string>此 App 需要存取相機以提供語音互動遊戲的功能。</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>此 App 需要使用麥克風錄製語音。</string>
+
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>

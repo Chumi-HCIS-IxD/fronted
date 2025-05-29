@@ -32,6 +32,14 @@ class FilterGamePage extends StatefulWidget {
 }
 
 class _FilterGamePageState extends State<FilterGamePage> {
+  final List<String> _imagePaths = [
+    'assets/images/濾鏡遊戲1.png',
+    'assets/images/濾鏡遊戲2.png',
+    'assets/images/濾鏡遊戲3.png',
+    'assets/images/濾鏡遊戲4.png',
+    'assets/images/濾鏡遊戲5.png',
+  ];
+
   late List<CameraDescription> _cameras;
   CameraController? _cameraController;
 
@@ -50,6 +58,24 @@ class _FilterGamePageState extends State<FilterGamePage> {
     _initCamera();
     _loadQuestions();
   }
+
+  //測試最終圖片樣式
+  // @override
+  // void initState() {
+  //   super.initState();
+  //
+  //   _results = [
+  //     {'correct': true},
+  //     {'correct': true},
+  //     {'correct': true},
+  //     {'correct': true},
+  //     {'correct': true},
+  //   ];
+  //
+  //   _initCamera();
+  //   _loadQuestions();
+  // }
+
 
   Future<void> _initCamera() async {
     _cameras = await availableCameras();
@@ -127,7 +153,7 @@ class _FilterGamePageState extends State<FilterGamePage> {
     'audioUrl':           _questions[_currentIndex]['audioUrl'] ?? '',
     'userRecordingUrl':   path,
     'recognizedSentence': actual,
-    'correct':            isCorrect,
+    'correct':            isCorrect, //利用此參數更換頁面（對一題換一個）
   });
 
   // 如果還有下一題，就切到下一題；否則直接跳結果頁
@@ -156,6 +182,11 @@ class _FilterGamePageState extends State<FilterGamePage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentImageIndex = _results.where((r) => r['correct'] == true).length - 1;
+    final imagePath = currentImageIndex >= 0 && currentImageIndex < _imagePaths.length
+        ? _imagePaths[currentImageIndex]
+        : 'assets/images/star.png'; // 預設圖片
+
     const kPrimaryGreen = Color(0xFF2E7D32);
     const kAccentGreen = Color(0xFF4CAF50);
     final screenWidth = MediaQuery.of(context).size.width;
@@ -251,8 +282,7 @@ class _FilterGamePageState extends State<FilterGamePage> {
                   Positioned(
                     top: 0,
                     right: -60,
-                    child: Image.asset('assets/images/star.png',
-                        width: 150, height: 150),
+                    child: Image.asset('assets/images/star.png', width: 150, height: 150)
                   ),
                 ],
               ),
@@ -270,21 +300,36 @@ class _FilterGamePageState extends State<FilterGamePage> {
                 borderType: BorderType.RRect,
                 radius: const Radius.circular(12),
                 dashPattern: const [8, 4],
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(0),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
-                    width: 240,
-                    height: 280,
-                    child: Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.rotationY(math.pi),
-                      child: CameraPreview(_cameraController!),
+                    width: 300,
+                    height: 500,
+                    child: ClipRect(
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.rotationY(math.pi),
+                              child: CameraPreview(_cameraController!),
+                            ),
+                          ),
+                          if (currentImageIndex >= 0 && currentImageIndex < _imagePaths.length)
+                            Positioned.fill(
+                              child: Image.asset(
+                                imagePath,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            )
           ),
 
           Positioned(
