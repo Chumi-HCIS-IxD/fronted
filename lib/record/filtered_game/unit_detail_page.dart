@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../../services/auth_api_service.dart';
 
 class UnitDetailPage extends StatefulWidget {
@@ -28,6 +32,7 @@ class UnitDetailPage extends StatefulWidget {
 class _UnitDetailPageState extends State<UnitDetailPage> {
   List<QuestionCorrection> corrections = [];
   bool isLoading = true;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -35,10 +40,49 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
     fetchData();
   }
 
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playAudio(String url) async {
+    print('⬇️ 正在下載音檔：$url');
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) {
+        print('❌ 下載失敗：${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('音檔下載失敗：${response.statusCode}')),
+        );
+        return;
+      }
+
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/temp_audio.wav';
+      final file = File(filePath);
+      await file.writeAsBytes(response.bodyBytes);
+
+      await _audioPlayer.stop();
+      await _audioPlayer.play(DeviceFileSource(file.path));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('播放中')),
+      );
+    } catch (e) {
+      print('❌ 音檔播放失敗: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('播放失敗：$e')),
+      );
+    }
+  }
+
   Future<void> fetchData() async {
     try {
-      final questions = widget.questions ?? await widget.authService.fetchFilterQuestions(widget.unitId);
-      final record = widget.recordData ?? await widget.authService.fetchRecordForUnit(widget.unitId);
+      final questions = widget.questions ??
+          await widget.authService.fetchFilterQuestions(widget.unitId);
+      final record = widget.recordData ??
+          await widget.authService.fetchRecordForUnit(widget.unitId);
       final resultsList = (record != null && record['results'] != null)
           ? (record['results'] as List<dynamic>)
           : <dynamic>[];
@@ -49,12 +93,13 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
         if (res['result'] == true) continue; // 只顯示錯的
 
         final qid = res['questionId']?.toString() ?? '';
-        final qObjIndex = questions.indexWhere((q) => q['id'] == qid);
+        final qObjIndex =
+        questions.indexWhere((q) => q['id']?.toString() == qid);
         if (qObjIndex == -1) continue;
 
         final qObj = questions[qObjIndex];
         parsed.add(QuestionCorrection(
-          questionIndex: qObjIndex,   // 題號（index）
+          questionIndex: qObjIndex,
           question: qObj['taibun'] ?? '',
           tailou: qObj['tailou'] ?? '',
           translation: qObj['zh'] ?? '',
@@ -94,7 +139,8 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
           const SizedBox(height: 12),
           const Text(
             '錯題訂正',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style:
+            TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Expanded(
@@ -103,52 +149,67 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
               itemBuilder: (context, idx) {
                 final c = corrections[idx];
                 return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 10, horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 顯示「第幾題」
                         Row(
                           children: [
-                            const Icon(Icons.close, color: Colors.red),
+                            const Icon(Icons.close,
+                                color: Colors.red),
                             const SizedBox(width: 8),
                             Text(
                               "第 ${c.questionIndex + 1} 題",
-                              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+                              style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Text(
                           c.question,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold),
                         ),
                         Text(
                           c.tailou,
-                          style: const TextStyle(fontSize: 16, color: Colors.blue),
+                          style: const TextStyle(
+                              fontSize: 16, color: Colors.blue),
                         ),
                         Text(
                           c.translation,
-                          style: const TextStyle(fontSize: 14, color: Colors.black54),
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.black54),
                         ),
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.volume_up, color: Colors.white),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              ),
-                              onPressed: () {
-                                // TODO: 加入音檔播放功能
-                              },
-                              label: const Text('正確發音', style: TextStyle(color: Colors.white)),
+                        Center(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(
+                                Icons.volume_up,
+                                color: Colors.white),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(20)),
                             ),
-                          ],
+                            onPressed: c.audioUrl.isEmpty
+                                ? null
+                                : () {
+                              _playAudio(c.audioUrl);
+                            },
+                            label: const Text('正確發音',
+                                style: TextStyle(
+                                    color: Colors.white)),
+                          ),
                         ),
                       ],
                     ),

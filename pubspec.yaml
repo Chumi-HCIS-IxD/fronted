@@ -86,6 +86,11 @@ flutter:
     - assets/images/mcq.png
     - assets/images/speak.png
     - assets/images/chat.png
+    - assets/images/濾鏡遊戲1.png
+    - assets/images/濾鏡遊戲2.png
+    - assets/images/濾鏡遊戲3.png
+    - assets/images/濾鏡遊戲4.png
+    - assets/images/濾鏡遊戲5.png
 
 
   # To add assets to your application, add an assets section, like this:
