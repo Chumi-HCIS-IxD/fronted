@@ -367,6 +367,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
+import '../../utils/platform_audio_player.dart';
 import '../../theme/colors.dart';
 import '../../theme/dimens.dart';
 import 'api.dart';
@@ -400,7 +401,8 @@ class _McqGamePageState extends State<McqGamePage> {
   int _currentIndex = 0;
   late int _remaining;
   Timer? _timer;
-  late AudioPlayer _player;
+  // late AudioPlayer _player;
+  late PlatformAudioPlayer _pPlayer;
   final List<Map<String, dynamic>> _answers = [];
   bool _navigated = false;
 
@@ -410,7 +412,8 @@ class _McqGamePageState extends State<McqGamePage> {
   @override
   void initState() {
     super.initState();
-    _player = AudioPlayer();
+    // _player = AudioPlayer();
+    _pPlayer = PlatformAudioPlayer();
     final endTs = widget.startTimestamp + widget.timeLimit * 1000;
     _remaining = ((endTs - DateTime.now().millisecondsSinceEpoch) / 1000).ceil();
     if (_remaining < 0) _remaining = 0;
@@ -421,7 +424,8 @@ class _McqGamePageState extends State<McqGamePage> {
   @override
   void dispose() {
     _timer?.cancel();
-    _player.dispose();
+    // _player.dispose();
+    _pPlayer.dispose();
     super.dispose();
   }
 
@@ -545,10 +549,8 @@ class _McqGamePageState extends State<McqGamePage> {
   }
 
   Future<void> _playAudio(String url) async {
-    try {
-      await _player.stop();
-      await _player.play(UrlSource(url));
-    } catch (_) {}
+    try { await _pPlayer.play(url); }
+    catch (e) { debugPrint('播放失敗：$e'); }
   }
 
   @override

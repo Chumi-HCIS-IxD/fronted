@@ -42,11 +42,12 @@ dependencies:
   image_picker: ^1.0.4
   intl: ^0.18.1
   camera: ^0.10.0+4
-  record: ^4.4.1
+  record: ^6.0.0
   path_provider: ^2.0.14
   dotted_border: ^2.0.0
   characters: ^1.2.0
   video_player: ^2.6.0
+  just_audio: ^0.9.40
 
 dev_dependencies:
   flutter_test:
@@ -75,6 +76,7 @@ flutter:
     - assets/images/login.png
     - assets/images/game_star.png
     - assets/images/game_peach.png
+    - assets/images/game_banana.png
     - assets/images/star_fruit_header.png
     - assets/images/one.png
     - assets/images/two.png
@@ -86,6 +88,7 @@ flutter:
     - assets/images/mcq.png
     - assets/images/speak.png
     - assets/images/chat.png
+    - assets/images/papaya_header.png
 
 
   # To add assets to your application, add an assets section, like this:

@@ -1,4 +1,4 @@
-// //filtered_game/result_page
+//
 // import 'dart:io';
 // import 'package:flutter/material.dart';
 // import 'package:audioplayers/audioplayers.dart';
@@ -278,11 +278,14 @@
 //   }
 // }
 
-// filtered_game/result_page.dart
+// lib/games/filtered_game/result_page.dart
 
 import 'dart:io';
+import 'package:audioplayers/audioplayers.dart';
+import '../../utils/platform_audio_player.dart';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:video_player/video_player.dart'; // 影片播放
+import 'package:http/http.dart' as http;
 import '../../pages/home_page.dart';
 import '../../services/auth_api_service.dart';
 
@@ -303,64 +306,73 @@ class ResultPage extends StatefulWidget {
 }
 
 class _ResultPageState extends State<ResultPage> {
-  final Map<int, VideoPlayerController> _controllers = {};
-  bool _videosReady = false;
   bool _submitting = false;
+  late final String _audioHost;
+  /// 用來存放每一題對應的 VideoPlayerController (可空)
+  final List<VideoPlayerController?> _videoControllers = [];
+  // final AudioPlayer _audioPlayer = AudioPlayer();
+  late final PlatformAudioPlayer _pPlayer;
+  /// PageController 用於 PageView
+  final PageController _pageController = PageController();
 
   @override
   void initState() {
     super.initState();
+    _pPlayer = PlatformAudioPlayer();
+    // _audioHost = '${widget.authService.baseUrl}/api/speak/audio';
     _initVideoControllers();
     _submitResults();
   }
 
-  Future<void> _initVideoControllers() async {
-    final List<Future> inits = [];
-    for (int i = 0; i < widget.questionResults.length; i++) {
-      final path = widget.questionResults[i]['videoPath'] as String?;
-      if (path != null && path.isNotEmpty) {
-        try {
-          final ctrl = VideoPlayerController.file(File(path))
-            ..setLooping(false);
-          _controllers[i] = ctrl;
-          inits.add(ctrl.initialize().catchError((e) {
-            debugPrint('⚠️ Video init failed for idx $i: $e');
-          }));
-        } catch (e) {
-          debugPrint('⚠️ Create controller failed for idx $i: $e');
-        }
-      }
-    }
-
-    // 等全部初始化（或錯誤）完成
-    await Future.wait(inits);
-    if (mounted) {
-      setState(() {
-        _videosReady = true;
-      });
-    }
-  }
-
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
+    for (var controller in _videoControllers) {
+      controller?.dispose();
     }
+    // _audioPlayer.dispose();
+    _pPlayer.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
+  /// 初始化每一筆 questionResults 對應的影片控制器
+  Future<void> _initVideoControllers() async {
+    for (var q in widget.questionResults) {
+      final path = q['videoPath'] as String?;
+      if (path != null && path.isNotEmpty) {
+        final controller = VideoPlayerController.file(File(path));
+        try {
+          await controller.initialize();
+          controller.setLooping(false);
+          _videoControllers.add(controller);
+        } catch (e) {
+          _videoControllers.add(null);
+          print('❌ VideoPlayerController 初始化失敗 (path=$path)：$e');
+        }
+      } else {
+        _videoControllers.add(null);
+      }
+    }
+    setState(() {});
+  }
+
+  /// 模擬送出結果給後端
   Future<void> _submitResults() async {
     setState(() => _submitting = true);
+
+    final payload = widget.questionResults
+        .map((q) => {
+      'questionId': q['questionId'],
+      'result': true,
+    })
+        .toList();
+
     final success = await widget.authService.submitSpeakResults(
       widget.unitId,
-      widget.questionResults
-          .map((q) => {
-        'questionId': q['questionId'],
-        'result': q['correct'] == true,
-      })
-          .toList(),
+      payload,
     );
     setState(() => _submitting = false);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(success ? '提交成功' : '提交失敗')),
     );
@@ -368,16 +380,10 @@ class _ResultPageState extends State<ResultPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 還沒準備好時顯示 loading
-    if (!_videosReady) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     final total = widget.questionResults.length;
-    final correctCount =
-        widget.questionResults.where((q) => q['correct'] == true).length;
+    final completedCount = _videoControllers
+        .where((c) => c != null && c.value.isInitialized)
+        .length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFE5E5E5),
@@ -386,7 +392,7 @@ class _ResultPageState extends State<ResultPage> {
           children: [
             const SizedBox(height: 16),
             const Text(
-              '練說話小遊戲結果',
+              '練說話結果',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -394,81 +400,238 @@ class _ResultPageState extends State<ResultPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Text('本次共 $total 題，答對 $correctCount 題',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 12),
+            Text(
+              '單元 ${widget.unitId}  |  共 $total 題，已錄製影片 $completedCount 支',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 20),
+
+            // Expanded 包含 PageView，佔滿剩餘空間
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: total,
-                itemBuilder: (ctx, idx) {
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: widget.questionResults.length,
+                itemBuilder: (context, idx) {
                   final q = widget.questionResults[idx];
-                  final ctrl = _controllers[idx];
-                  final isCorrect = q['correct'] as bool? ?? false;
+                  final videoPath = q['videoPath'] as String?;
+                  final questionId = q['questionId'] as String?;
 
-                  return Container(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 題號與正確 / 錯誤
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor:
-                              isCorrect ? Colors.green : Colors.red,
-                              child: Icon(
-                                isCorrect ? Icons.check : Icons.close,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                "第${idx + 1}題：${q['text'] ?? ''}",
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
+                  VideoPlayerController? controller;
+                  if (idx < _videoControllers.length) {
+                    controller = _videoControllers[idx];
+                  }
 
-                        // 若 controller 初始化成功則顯示影片，否則提示
-                        if (ctrl != null && ctrl.value.isInitialized)
-                          AspectRatio(
-                            aspectRatio: ctrl.value.aspectRatio,
-                            child: Stack(
-                              alignment: Alignment.bottomCenter,
-                              children: [
-                                VideoPlayer(ctrl),
-                                _PlayPauseOverlay(controller: ctrl),
-                                VideoProgressIndicator(ctrl,
-                                    allowScrubbing: true),
+                  // 卡片內容
+                  return SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Column(
+                        children: [
+                          // Card 容器
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
+                                ),
                               ],
                             ),
-                          )
-                        else
-                          Container(
-                            height: 200,
-                            color: Colors.black12,
-                            child: const Center(
-                              child: Text('無法播放影片'),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 第 X 題 標題
+                                  Text(
+                                    questionId != null
+                                        ? "第 ${idx + 1} 題 (ID: $questionId)"
+                                        : "第 ${idx + 1} 題",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    '您的錄影結果：',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Center(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        width: double.infinity,
+                                        height: 280,
+                                        color: const Color(0xFFF0F8F5),
+                                        child: (controller != null &&
+                                            controller.value.isInitialized)
+                                            ? Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            // 影片預覽
+                                            AspectRatio(
+                                              aspectRatio:
+                                              controller.value
+                                                  .aspectRatio,
+                                              child: VideoPlayer(controller),
+                                            ),
+                                            // 中間播放按鈕
+                                            GestureDetector(
+                                              onTap: () {
+                                                if (controller!.value
+                                                    .isPlaying) {
+                                                  controller.pause();
+                                                } else {
+                                                  controller.play();
+                                                }
+                                                setState(() {});
+                                              },
+                                              child: Container(
+                                                color: Colors.black26,
+                                                child: Icon(
+                                                  controller.value.isPlaying
+                                                      ? Icons
+                                                      .pause_circle_filled
+                                                      : Icons
+                                                      .play_circle_filled,
+                                                  color: Colors.white,
+                                                  size: 48,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                            : Column(
+                                          mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.videocam_off,
+                                              color: Colors.grey,
+                                              size: 48,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              videoPath != null
+                                                  ? '影片尚未載入'
+                                                  : '尚無錄影',
+                                              style: TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.grey[600]),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // 「正確發音」按鈕 (示意按鈕，可照原本需求放功能)
+                                  Center(
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF2E7D32),
+                                        foregroundColor: Colors.white,
+                                        minimumSize: const Size(160, 44),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16)),
+                                      ),
+                                      onPressed: () async {
+                                        final url = q['audioUrl'] as String?;
+                                        if (url == null || url.isEmpty) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('無法取得正確發音')),
+                                          );
+                                          return;
+                                        }
+                                        try {
+                                          await _pPlayer.play(url);
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('播放錯誤：$e')),
+                                          );
+                                        }
+                                        // final url = q['audioUrl'] as String?;
+                                        // if (url == null || url.isEmpty) {
+                                        //   ScaffoldMessenger.of(context).showSnackBar(
+                                        //     const SnackBar(content: Text('無法取得正確發音')),
+                                        //   );
+                                        //   return;
+                                        // }
+                                        // print('嘗試下載並播放 WAV：$url');
+                                        // try {
+                                        //   // 1. 先用 HTTP GET 下載檔案到記憶體
+                                        //   final response = await http.get(Uri.parse(url));
+                                        //   if (response.statusCode != 200) {
+                                        //     throw 'HTTP 錯誤：${response.statusCode}';
+                                        //   }
+                                        //
+                                        //   // 2. 停掉上一段播放，並設音量
+                                        //   await _audioPlayer.stop();
+                                        //   await _audioPlayer.setVolume(1.0);
+                                        //
+                                        //   // 3. 以 BytesSource 播放下載到的 bodyBytes
+                                        //   await _audioPlayer.play(BytesSource(response.bodyBytes));
+                                        //   print('下載後的 BytesSource 已開始播放 WAV');
+                                        // } catch (e) {
+                                        //   print('❌ 下載或播放失敗：$e');
+                                        //   ScaffoldMessenger.of(context).showSnackBar(
+                                        //     SnackBar(content: Text('播放錯誤：$e')),
+                                        //   );
+                                        // }
+                                      },
+                                      icon: const Icon(Icons.volume_up, size: 20),
+                                      label: const Text('正確發音', style: TextStyle(fontSize: 16)),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                      ],
+                          const SizedBox(height: 24),
+                          // 下方橫向分頁指示點 (dots)
+                          SizedBox(
+                            height: 20,
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(
+                                  widget.questionResults.length,
+                                      (dotIndex) => Container(
+                                    margin:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                    width: dotIndex == idx ? 12 : 8,
+                                    height: dotIndex == idx ? 12 : 8,
+                                    decoration: BoxDecoration(
+                                      color: dotIndex == idx
+                                          ? const Color(0xFF2E7D32)
+                                          : Colors.grey[400],
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
               ),
             ),
 
-            // 回到首頁按鈕
+            // 最下方「回到首頁」按鈕
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: ElevatedButton(
@@ -481,45 +644,25 @@ class _ResultPageState extends State<ResultPage> {
                       borderRadius: BorderRadius.circular(20)),
                   elevation: 0,
                 ),
-                onPressed: () => Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HomePage(
-                      authService: widget.authService,
-                      initialIndex: 0,
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HomePage(
+                        authService: widget.authService,
+                        initialIndex: 0,
+                      ),
                     ),
-                  ),
-                      (route) => false,
+                        (route) => false,
+                  );
+                },
+                child: const Text(
+                  '回到首頁',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                child: const Text('回到首頁',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 播放/暫停按鈕疊加層
-class _PlayPauseOverlay extends StatelessWidget {
-  final VideoPlayerController controller;
-  const _PlayPauseOverlay({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () =>
-      controller.value.isPlaying ? controller.pause() : controller.play(),
-      child: Container(
-        color: Colors.black26,
-        child: Center(
-          child: Icon(
-            controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-            color: Colors.white,
-            size: 40,
-          ),
         ),
       ),
     );

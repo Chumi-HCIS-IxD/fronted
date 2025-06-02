@@ -1,137 +1,260 @@
+// lib/record/filtered_game/unit_selection_page.dart
+
 import 'package:flutter/material.dart';
 import '../../services/auth_api_service.dart';
+import '../../theme/colors.dart';
 import 'unit_detail_page.dart';
 
+/// SpeakUnit 用來存放 API 回傳的單元資訊
+class SpeakUnit {
+  final String unitId;
+  final String title;
+  final String subtitle;
+  final String iconPath;
+
+  SpeakUnit({
+    required this.unitId,
+    required this.title,
+    required this.subtitle,
+    required this.iconPath,
+  });
+
+  factory SpeakUnit.fromJson(Map<String, dynamic> json) {
+    final unitId = (json['unitId'] ?? '').toString();
+    final title = (json['unitTitle'] ?? '').toString();
+    final subtitle = (json['description'] ?? '').toString();
+
+    final iconPath = {
+      'Unit_1': 'assets/images/one.png',
+      'Unit_2': 'assets/images/two.png',
+      'Unit_3': 'assets/images/three.png',
+      'Unit_4': 'assets/images/four.png',
+      'Unit_5': 'assets/images/five.png',
+    }[unitId] ??
+        'assets/images/default.png';
+
+    return SpeakUnit(
+      unitId: unitId,
+      title: title,
+      subtitle: subtitle,
+      iconPath: iconPath,
+    );
+  }
+}
+
+/// 調整后的 Filter_UnitSelectionPage：
+///   - 新增從外部傳入的 `authService` 參數
+///   - 其餘版面部分完全對齊「你提供的排版＆圖片路徑」
 class Filter_UnitSelectionPage extends StatefulWidget {
   final AuthApiService authService;
 
-  const Filter_UnitSelectionPage({super.key, required this.authService});
+  const Filter_UnitSelectionPage({
+    Key? key,
+    required this.authService,
+  }) : super(key: key);
 
   @override
-  State<Filter_UnitSelectionPage> createState() => _UnitSelectionPageState();
+  State<Filter_UnitSelectionPage> createState() =>
+      _Filter_UnitSelectionPageState();
 }
 
-class _UnitSelectionPageState extends State<Filter_UnitSelectionPage> {
-  List<Map<String, dynamic>> recentRecords = [];
-
-  final List<String> units = const [
-    'Unit_1',
-    'Unit_2',
-    'Unit_3',
-    'Unit_4',
-    'Unit_5',
-    'Unit_6',
-  ];
-
-  final List<String> unitNames = const [
-    '單元一',
-    '單元二',
-    '單元三',
-    '單元四',
-    '單元五',
-    '單元六',
-  ];
-
-  final icons = ['🍐', '🍔', '📷', '🎯', '📚', '🧠'];
+class _Filter_UnitSelectionPageState extends State<Filter_UnitSelectionPage> {
+  List<SpeakUnit> units = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    widget.authService.fetchAllFilterRecords().then((records) {
-      setState(() => recentRecords = records.length <= 5
-          ? records.reversed.toList()
-          : records.sublist(records.length - 5).reversed.toList());
+    fetchUnits();
+  }
 
-      print('📘 共抓到 ${records.length} 筆作答紀錄');
-      print(recentRecords);
-    });
+  /// 從 API 抓所有單元（GET /api/speak/speakQuestionSets）
+  void fetchUnits() async {
+    try {
+      final response = await widget.authService.get(
+        '/api/speak/speakQuestionSets',
+      );
+      final data = response['speakSets'] as List<dynamic>;
+      final loaded = data.map((json) => SpeakUnit.fromJson(json)).toList();
+      setState(() {
+        units = loaded;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('❌ 取得單元失敗：$e');
+      setState(() => isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (recentRecords.isEmpty) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: const Color(0xFFE5E5E5),
-      appBar: AppBar(
-        title: const Text('濾鏡紀錄'),
-        centerTitle: true,
-      ),
+      backgroundColor: AppColors.primaryLight,
       body: Column(
         children: [
-          const SizedBox(height: 16),
-          const Center(
-            child: Column(
-              children: [
-                Icon(Icons.image_outlined, size: 80, color: Colors.grey),
-                SizedBox(height: 8),
-                Text("主視覺", style: TextStyle(fontSize: 16, color: Colors.black54)),
-              ],
-            ),
+          const SizedBox(height: 0),
+          // ─── 1. Header 區塊（Stack + 圖片 + 文字） ───
+          Stack(
+            children: [
+              Image.asset(
+                'assets/images/star_fruit_header.png',
+                width: double.infinity,
+                height: 320,
+                fit: BoxFit.cover,
+              ),
+              SafeArea(
+                child: Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const Expanded(child: SizedBox()),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            '練說話',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Lián kóng-uē',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Expanded(child: SizedBox()),
+                      const SizedBox(width: 28),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+
+          // ─── 2. 下方圓角列表背景 ───
           Expanded(
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: const BoxDecoration(
+                color: AppColors.primaryTint,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(36),
+                ),
               ),
-              padding: const EdgeInsets.all(16),
-              child: ListView.builder(
-                  itemCount: recentRecords.length,
-                  itemBuilder: (context, index) {
-                    final record = recentRecords[index];
-                    final unitId = (record['unitId'] ?? '').toString(); // <--- 修正欄位
-                    final unitIndex = units.indexOf(unitId);
-                    final unitName = unitIndex != -1 ? unitNames[unitIndex] : unitId;
-                    final icon = unitIndex != -1 ? icons[unitIndex] : '❓';
-                    final dateString = (record['submittedAt'] ?? '未提供時間').toString(); // <--- 修正欄位
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 16),
+                itemCount: units.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final unit = units[index];
+                  return GestureDetector(
+                    onTap: () async {
+                      // 按下去要跳到詳細頁
+                      final questions = await widget.authService
+                          .fetchFilterQuestions(unit.unitId);
 
-                    return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        leading: Text(icon, style: const TextStyle(fontSize: 32)),
-                        title: const Text("濾鏡小遊戲", style: TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(unitName),
-                        trailing: const Row(
-                          mainAxisSize: MainAxisSize.min,
+                      // 找出所有同 unitId 的紀錄
+                      final allRecs =
+                      await widget.authService.fetchAllFilterRecords();
+                      final sameUnitRecs = allRecs
+                          .where((r) =>
+                      (r['unitId']?.toString() ?? '') ==
+                          unit.unitId)
+                          .map((r) => r as Map<String, dynamic>)
+                          .toList();
+
+                      String dateString = '未提供時間';
+                      if (sameUnitRecs.isNotEmpty) {
+                        dateString = sameUnitRecs.last['submittedAt']
+                            ?.toString() ??
+                            '未提供時間';
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UnitDetailPage(
+                            unitId: unit.unitId,
+                            roomId: 'room_${unit.unitId}',
+                            userId: 'anonymous',
+                            authService: widget.authService,
+                            date: dateString,
+                            recordList: sameUnitRecs,
+                            questions: questions,
+                            unitTitle: unit.title,
+                            unitRoman: unit.subtitle,
+                            topIconAsset: unit.iconPath,
+                            isCompleted: sameUnitRecs.isNotEmpty,
+                          ),
+                        ),
+                      );
+                    },
+                    child: SizedBox(
+                      height: 80,
+                      width: double.infinity,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
-                            Text('前往訂正', style: TextStyle(color: Colors.black87)),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward_ios, size: 18, color: Colors.black54),
+                            // 背景圖
+                            Image.asset(
+                              unit.iconPath,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                            // 半透明白遮罩
+                            Container(
+                              height: 80,
+                              color: Colors.white.withOpacity(0.5),
+                            ),
+                            // 文字置中
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  unit.title,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.grey900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  unit.subtitle,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.grey700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
-                        onTap: () async {
-                          // 取得這一筆的 unitId
-                          final questions = await widget.authService.fetchFilterQuestions(unitId);
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => UnitDetailPage(
-                                unitId: unitId,
-                                roomId: 'room_$unitId',
-                                userId: 'anonymous',
-                                authService: widget.authService,
-                                date: dateString,
-                                recordData: record,
-                                questions: questions,
-                              ),
-                            ),
-                          );
-                        },
                       ),
-                    );
-                  }
+                    ),
+                  );
+                },
               ),
             ),
           ),

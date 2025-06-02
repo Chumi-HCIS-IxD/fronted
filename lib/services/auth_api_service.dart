@@ -126,21 +126,26 @@ class AuthApiService {
     return prefs.getString('uid');
   }
 
+  /// 取得「選擇題（MCQ）」題庫：mcq/questionSets/Unit_X/questions
   Future<List<Map<String, dynamic>>> fetchQuestions(String unitId) async {
+    final uri = Uri.parse('$baseUrl/api/mcq/questionSets/$unitId/questions');
     final response = await http.get(
-      Uri.parse('$baseUrl/api/mcq/questionSets/$unitId/questions'),
+      uri,
       headers: {'Content-Type': 'application/json'},
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final questions = data['questions'];
-      if (questions is List) {
-        return questions.cast<Map<String, dynamic>>();
-      }
-    }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-    throw Exception('無法取得題目');
+      // data['questions'] 應該是一個 List，裡面每筆才有 option/optionRoman/ans
+      if (data['questions'] is List) {
+        return List<Map<String, dynamic>>.from(data['questions']);
+      } else {
+        return [];
+      }
+    } else {
+      throw Exception('無法取得選擇題題庫（status=${response.statusCode}）');
+    }
   }
 
   Future<List<Map<String, dynamic>>> fetchFilterQuestions(String unitId) async {
@@ -331,6 +336,14 @@ class AuthApiService {
       print('❌ submitSpeakResults failed: '
           'status=${response.statusCode}, body=${response.body}');
       return false;
+    }
+  }
+  Future<dynamic> get(String endpoint) async {
+    final response = await http.get(Uri.parse('$baseUrl$endpoint'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('GET 請求失敗: ${response.statusCode}');
     }
   }
 }

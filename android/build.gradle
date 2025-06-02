@@ -1,3 +1,30 @@
+// android/build.gradle （Project-level，最外層那一個）
+buildscript {
+    ext.kotlin_version = '1.9.24'                           // ← Kotlin Plugin 版本
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.3.0'   // ← Android Gradle Plugin 版本
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0' // Use the latest version
+        // (如果有用 Firebase / Google Services，就在這裡再加一行)
+        // classpath 'com.google.gms:google-services:4.3.15'
+    }
+}
+
+// 如果你沒用 plugins {} 去管理版本，可以直接把下面整塊刪掉
+// 但如果你想留，就把版本改成 7.6.3 與 1.7.10
+
+//plugins {
+//    id 'com.android.application' version '8.3.0' apply false
+//    id 'com.android.library'     version '7.6.3' apply false
+//    id 'org.jetbrains.kotlin.android' version '1.7.10' apply false
+//}
+
+
 allprojects {
     repositories {
         google()
