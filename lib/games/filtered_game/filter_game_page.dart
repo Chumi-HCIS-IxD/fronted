@@ -208,7 +208,7 @@ class _FilterGamePageState extends State<FilterGamePage> {
         elevation: 0,
         leading: const BackButton(color: Colors.white),
         centerTitle: true,
-        title: const Text('濾鏡小遊戲',
+        title: const Text('練說話小遊戲',
             style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(20),

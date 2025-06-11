@@ -66,14 +66,14 @@ class _UnitSelectionPageState extends State<Filter_UnitSelectionPage> {
     if (recentRecords.isEmpty && !isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('濾鏡紀錄'),
+          title: const Text('練說話紀錄'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.pop(context),
           ),
         ),
         body: const Center(
-          child: Text('尚無濾鏡遊戲紀錄', style: TextStyle(fontSize: 18)),
+          child: Text('尚無練說話遊戲紀錄', style: TextStyle(fontSize: 18)),
         ),
       );
     }
@@ -83,7 +83,7 @@ class _UnitSelectionPageState extends State<Filter_UnitSelectionPage> {
       backgroundColor: const Color(0xFFE5E5E5),
       appBar: AppBar(
         automaticallyImplyLeading: true,
-        title: const Text('濾鏡紀錄'),
+        title: const Text('練說話紀錄'),
         centerTitle: true,
       ),
       body: Column(
@@ -125,7 +125,7 @@ class _UnitSelectionPageState extends State<Filter_UnitSelectionPage> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         leading: Text(icon, style: const TextStyle(fontSize: 32)),
-                        title: const Text("濾鏡小遊戲", style: TextStyle(fontWeight: FontWeight.bold)),
+                        title: const Text("練說話小遊戲", style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(unitName),
                         trailing: const Row(
                           mainAxisSize: MainAxisSize.min,
