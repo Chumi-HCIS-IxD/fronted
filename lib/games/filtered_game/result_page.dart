@@ -338,7 +338,7 @@ class _ResultPageState extends State<ResultPage> {
   /// 初始化每一筆 questionResults 對應的影片控制器
   Future<void> _initVideoControllers() async {
     for (var q in widget.questionResults) {
-      final path = q['videoPath'] as String?;
+      final path = q['userVideoUrl'] as String?;
       if (path != null && path.isNotEmpty) {
         final controller = VideoPlayerController.file(File(path));
         try {
