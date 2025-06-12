@@ -2,7 +2,7 @@
 //
 // import 'package:flutter/material.dart';
 // import '../theme/colors.dart';
-// import '../games/MCQ_Game/room_selection_page.dart';
+// import '../games/MCQ_Game/chat_game_lobby_page.dart';
 // import '../games/filtered_game/unit_selection_page.dart';
 //
 // class GameTab extends StatefulWidget {
@@ -204,9 +204,11 @@
 // lib/tabs/game_tab.dart
 
 import 'package:flutter/material.dart';
+import '../games/Chat_Game/chat_room_selection_page.dart';
 import '../theme/colors.dart';
 import '../games/MCQ_Game/room_selection_page.dart';
 import '../games/filtered_game/unit_selection_page.dart';
+import '../services/auth_api_service.dart';
 
 class GameTab extends StatefulWidget {
   const GameTab({Key? key}) : super(key: key);
@@ -216,6 +218,7 @@ class GameTab extends StatefulWidget {
 }
 
 class _GameTabState extends State<GameTab> {
+  final AuthApiService _authService = AuthApiService(baseUrl: 'http://140.116.245.157:5019');
   // 三個遊戲選項
   final List<String> _games = [
     '選擇題',     // 卡片 1 用
@@ -372,10 +375,15 @@ class _GameTabState extends State<GameTab> {
                   context,
                   MaterialPageRoute(builder: (_) => UnitSelectionPage()),
                 );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${_games[idx]} 尚未開放')),
+              } else if (idx == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ChatRoomSelectionPage(authService: _authService)),
                 );
+              // else {
+              //   ScaffoldMessenger.of(context).showSnackBar(
+              //     SnackBar(content: Text('${_games[idx]} 尚未開放')),
+              //   );
               }
             },
             child: Container(

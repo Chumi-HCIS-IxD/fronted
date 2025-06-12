@@ -31,7 +31,7 @@
 //     {
 //       'title': '來聊天',
 //       'subtitle': 'lâi-khai-káng',
-//       'asset': 'assets/images/chat.png'
+//       'asset': 'assets/images/Chat_Game.png'
 //     },
 //   ];
 //

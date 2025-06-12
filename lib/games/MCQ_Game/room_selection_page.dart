@@ -1,4 +1,4 @@
-// lib/games/MCQ_Game/room_selection_page.dart
+// lib/games/MCQ_Game/chat_game_lobby_page.dart
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
