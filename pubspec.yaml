@@ -48,6 +48,8 @@ dependencies:
   characters: ^1.2.0
   video_player: ^2.6.0
   just_audio: ^0.9.40
+  flutter_sound: ^9.28.0
+  permission_handler: ^12.0.0+1
 
 dev_dependencies:
   flutter_test:
