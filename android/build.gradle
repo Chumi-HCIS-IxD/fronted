@@ -9,7 +9,8 @@ buildscript {
 
     dependencies {
         classpath 'com.android.tools.build:gradle:8.3.0'   // ← Android Gradle Plugin 版本
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0' // Use the latest version
+
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24'
         // (如果有用 Firebase / Google Services，就在這裡再加一行)
         // classpath 'com.google.gms:google-services:4.3.15'
     }

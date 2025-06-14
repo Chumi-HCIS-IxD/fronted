@@ -1,72 +1,3 @@
-// import 'package:flutter/material.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
-// import '../pages/edit_profile_page.dart';
-// import '../services/auth_api_service.dart';
-//
-// class SettingsTab extends StatelessWidget {
-//   final AuthApiService authService;
-//   const SettingsTab({super.key, required this.authService});
-//
-//   Future<void> _logout(BuildContext context) async {
-//     final prefs = await SharedPreferences.getInstance();
-//     await prefs.remove('userToken');
-//     if (context.mounted) {
-//       Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
-//     }
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: const Color(0xFFF5F5F5),
-//       body: ListView(
-//         padding: const EdgeInsets.all(16),
-//         children: [
-//           const Text(
-//             '個人資料',
-//             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-//           ),
-//           const SizedBox(height: 10),
-//           ListTile(
-//             leading: const Icon(Icons.person),
-//             title: const Text('姓名'),
-//             subtitle: const Text('尚未設定'),
-//             trailing: const Icon(Icons.edit),
-//             onTap: () {
-//               Navigator.push(
-//                 context,
-//                 MaterialPageRoute(builder: (_) => EditProfilePage(authService: authService))
-//               );
-//             },
-//           ),
-//           const Divider(),
-//           const SizedBox(height: 20),
-//           const Text(
-//             '系統設定',
-//             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-//           ),
-//           const SizedBox(height: 10),
-//           ListTile(
-//             leading: const Icon(Icons.language),
-//             title: const Text('語言'),
-//             subtitle: const Text('繁體中文'),
-//             onTap: () {
-//               ScaffoldMessenger.of(context).showSnackBar(
-//                 const SnackBar(content: Text('語言切換尚未實作')),
-//               );
-//             },
-//           ),
-//           ListTile(
-//             leading: const Icon(Icons.logout),
-//             title: const Text('登出'),
-//             onTap: () => _logout(context),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_api_service.dart';
@@ -74,7 +5,13 @@ import '../theme/colors.dart';
 
 class SettingsTab extends StatefulWidget {
   final AuthApiService authService;
-  const SettingsTab({Key? key, required this.authService}) : super(key: key);
+  final ValueChanged<bool>? onMusicSettingChanged;
+
+  const SettingsTab({
+    Key? key,
+    required this.authService,
+    this.onMusicSettingChanged,
+  }) : super(key: key);
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
@@ -167,21 +104,25 @@ class _SettingsTabState extends State<SettingsTab> {
                   final prefs = await SharedPreferences.getInstance();
                   setState(() => isMusicOn = v);
                   await prefs.setBool('musicOn', v);
+                  // 通知 HomePage 做音樂開關
+                  if (widget.onMusicSettingChanged != null) {
+                    widget.onMusicSettingChanged!(v);
+                  }
                 },
               ),
 
               const SizedBox(height: 12),
 
               // 開啟通知 開關
-              _buildSwitchTile(
-                title: '開啟通知',
-                value: isNotificationOn,
-                onChanged: (v) async {
-                  final prefs = await SharedPreferences.getInstance();
-                  setState(() => isNotificationOn = v);
-                  await prefs.setBool('notificationOn', v);
-                },
-              ),
+              // _buildSwitchTile(
+              //   title: '開啟通知',
+              //   value: isNotificationOn,
+              //   onChanged: (v) async {
+              //     final prefs = await SharedPreferences.getInstance();
+              //     setState(() => isNotificationOn = v);
+              //     await prefs.setBool('notificationOn', v);
+              //   },
+              // ),
 
               const SizedBox(height: 12),
 
@@ -216,7 +157,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           bottomRight: Radius.circular(18),
                         ),
                         child: Column(
-                          children: ['中文', '英文', '台語'].map((lang) {
+                          children: ['中文'].map((lang) {
                             final isSelected = lang == selectedLanguage;
                             return GestureDetector(
                               onTap: () async {

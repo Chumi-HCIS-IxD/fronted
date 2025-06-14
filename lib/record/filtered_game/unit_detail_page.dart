@@ -222,17 +222,17 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
               ),
             ),
 
-            // ─── 3. 遊玩次數 ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '遊玩次數：$playCount 次',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
+            // // ─── 3. 遊玩次數 ───
+            // Padding(
+            //   padding: const EdgeInsets.symmetric(horizontal: 16),
+            //   child: Text(
+            //     '遊玩次數：$playCount 次',
+            //     style: const TextStyle(
+            //       fontSize: 16,
+            //       color: Colors.black87,
+            //     ),
+            //   ),
+            // ),
 
             const SizedBox(height: 12),
 
