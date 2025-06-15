@@ -91,12 +91,20 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
     await _player.openAudioSession();
     _playerReady = true;
 
-    // 6) 讀一次歷史訊息
-    await _loadMessages();
+    if (_partnerUid == null || _partnerUid!.isEmpty) {
+      setState(() {
+        _remaining   = 0;
+        _roundActive = false;
+      });
+    } else {
+      // 正常啟動倒數
+      _startTimer();
+      Timer.periodic(const Duration(seconds: 5), (_) => _loadNextMessage());
+    }
 
-    // 7) 啟動倒數以及定時拉新訊息
-    _startTimer();
-    Timer.periodic(const Duration(seconds: 5), (_) => _loadMessages());
+    // // 7) 啟動倒數以及定時拉新訊息
+    // _startTimer();
+    // Timer.periodic(const Duration(seconds: 5), (_) => _loadMessages());
   }
 
   Future<void> _fetchGroupInfo() async {
@@ -127,44 +135,166 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
     setState(() => _hostName = realName);
   }
 
-  Future<void> _loadMessages() async {
-    final base = widget.authService.baseUrl;
-    final room = widget.roomId;
-    final g    = _groupIdx;
-    final helper = FlutterSoundHelper();
+  Future<void> _loadNextMessage() async {
+    final base  = widget.authService.baseUrl;
+    final room  = widget.roomId;
+    final group = _groupIdx;
+    final idx   = _nextFetchIdx;
 
-    List<ChatMessage> loaded = [];
-    // 從 _nextFetchIdx 開始逐筆抓，遇到第一個非 200 就 break
-    for (int idx = _nextFetchIdx; idx < _nextFetchIdx + 10; idx++) {
-      final uri = Uri.parse(
-          '$base/api/chat/rooms/$room/groups/$g/record/$idx/ignored.aac'
-      );
-      final res = await http.get(uri);
-      if (res.statusCode != 200) break;
-      final js = jsonDecode(res.body) as Map<String, dynamic>;
+    final res = await http.get(
+        Uri.parse('$base/api/chat/rooms/$room/groups/$group/record/$idx'));
 
-      final userId = js['user'] as String;
-      final sender = (js['senderName'] as String?) ?? await lookupName(userId);
-      final file   = js['file'] as String;
-      final durMs  = js['duration'] as int?;
-      final label  = durMs != null
-          ? '${durMs ~/ 60000}:${((durMs % 60000) ~/ 1000).toString().padLeft(2, '0')}″'
-          : file;
-      final url = '$base/api/chat/rooms/$room/groups/$g/record/$idx/$file';
+    // --- A. 新版︰直接得到 audio/wav ---
+    final contentType = res.headers['content-type'] ?? '';
+    if (res.statusCode == 200 && contentType.contains('audio')) {
+      // 1. 存到暫存檔
+      final dir     = await getTemporaryDirectory();
+      final path    = '${dir.path}/$room\_$group\_$idx.wav';
+      // final file    = File(path)..writeAsBytesSync(res.bodyBytes, flush: true);
+      final file    = File(path);
+      await file.writeAsBytes(res.bodyBytes, flush: true);
+      // 2. 計算時長
+      // final helper  = FlutterSoundHelper();
+      // final dur     = await helper.duration(file.path) ?? Duration.zero;
+      final dur   = await _getWavDuration(file.path);
+      final fileUri = 'file://${file.path}';
+      // final dur     = await helper.duration(fileUri) ?? Duration.zero;
+      final ms      = dur.inMilliseconds;
+      final label   =
+          '${ms ~/ 60000}:${((ms % 60000) ~/ 1000).toString().padLeft(2, '0')}″';
 
-      loaded.add(ChatMessage(
-        sender: sender,
-        fileName: label,
-        audioUrl: url,
-      ));
-      _nextFetchIdx = idx + 1;
-    }
-
-    if (loaded.isNotEmpty) {
-      setState(() => _messages.addAll(loaded));
+      // 3. 加入訊息 (sender 只能用 unknown，如需顯示名稱請自行補 header 或額外 API)
+      setState(() {
+        _messages.add(ChatMessage(
+          sender:   'Partner',   // 如果後端有 X-Sender-Name header 可改成 res.headers['x-sender-name']
+          fileName: label,
+          audioUrl: fileUri,   // 本機路徑
+        ));
+        _nextFetchIdx = idx + 1;
+      });
       _scrollToBottom();
+      return;
     }
+
+    // --- B. 舊版︰先拿 JSON 再下載檔 ---
+    if (res.statusCode == 200 && contentType.contains('json')) {
+      final js     = jsonDecode(res.body) as Map<String, dynamic>;
+      final userId = js['user']?.toString();
+      final sender =
+          js['senderName']?.toString() ?? (userId == null ? 'Unknown' : await lookupName(userId));
+
+      final fileUrl = js['fileUrl']?.toString();
+      if (fileUrl == null) { _nextFetchIdx = idx + 1; return; }
+
+      String label;
+      if (js['duration'] != null) {
+        final durMs = js['duration'] as int;
+        label =
+        '${durMs ~/ 60000}:${((durMs % 60000) ~/ 1000).toString().padLeft(2, '0')}″';
+      } else {
+        // 舊後端沒給 duration → 下載後計算
+        final wavRes = await http.get(Uri.parse(fileUrl));
+        if (wavRes.statusCode != 200) return;
+        final dir     = await getTemporaryDirectory();
+        final tmpFile = File(
+            '${dir.path}/${DateTime.now().millisecondsSinceEpoch}.wav')..writeAsBytesSync(
+            wavRes.bodyBytes,
+            flush: true);
+
+        // final helper = FlutterSoundHelper();
+        // final dur    = await helper.duration(tmpFile.path) ?? Duration.zero;
+        final dur = await _getWavDuration(tmpFile.path);
+        final ms     = dur.inMilliseconds;
+        label =
+        '${ms ~/ 60000}:${((ms % 60000) ~/ 1000).toString().padLeft(2, '0')}″';
+        // 保留本機檔以供播放
+        setState(() {
+          _messages.add(ChatMessage(
+            sender:   sender,
+            fileName: label,
+            audioUrl: tmpFile.path,
+          ));
+          _nextFetchIdx = idx + 1;
+        });
+        _scrollToBottom();
+        return;
+      }
+
+      // JSON 有 duration 時仍使用遠端 URL
+      setState(() {
+        _messages.add(ChatMessage(
+          sender:   sender,
+          fileName: label,
+          audioUrl: fileUrl,
+        ));
+        _nextFetchIdx = idx + 1;
+      });
+      _scrollToBottom();
+      return;
+    }
+
+    // --- C. 還沒輪到這筆 ---
+    if (res.statusCode == 404) return;
+
+    // --- D. 其他錯誤 ---
+    print('► 撈取錄音 idx=$idx 失敗，status=${res.statusCode}, ct=$contentType');
   }
+
+  // Future<void> _loadNextMessage() async {
+  //   final base  = widget.authService.baseUrl;
+  //   final room  = widget.roomId;
+  //   final group = _groupIdx;
+  //   final idx   = _nextFetchIdx;
+  //
+  //   final res = await http.get(
+  //       Uri.parse('$base/api/chat/rooms/$room/groups/$group/record/$idx')
+  //   );
+  //   if (res.statusCode == 200) {
+  //     final js = jsonDecode(res.body) as Map<String, dynamic>;
+  //     final userId = js['user']?.toString();
+  //     if (userId == null) { _nextFetchIdx = idx + 1; return; }
+  //     final sender = js['senderName']?.toString() ?? await lookupName(userId);
+  //
+  //     final fileUrl = js['fileUrl']?.toString();
+  //     if (fileUrl == null) { _nextFetchIdx = idx + 1; return; }
+  //
+  //     String label;
+  //     if (js['duration'] != null) {
+  //       final durMs = js['duration'] as int;
+  //       label = '${durMs~/60000}:${((durMs%60000)~/1000).toString().padLeft(2,'0')}″';
+  //     } else {
+  //       // 下載一次，量出真實時長
+  //       final fileRes = await http.get(Uri.parse(fileUrl));
+  //       final dir     = await getTemporaryDirectory();
+  //       final ext     = p.extension(fileUrl);
+  //       final tmpFile = File('${dir.path}/${DateTime.now().millisecondsSinceEpoch}$ext');
+  //       await tmpFile.writeAsBytes(fileRes.bodyBytes, flush: true);
+  //
+  //       final helper = FlutterSoundHelper();
+  //       // duration 回傳 Duration
+  //       final dur = await helper.duration(tmpFile.path) ?? Duration.zero;
+  //       final ms  = dur.inMilliseconds;
+  //       label = '${ms ~/ 60000}:${((ms % 60000) ~/ 1000).toString().padLeft(2,'0')}″';
+  //       await tmpFile.delete();
+  //     }
+  //
+  //     setState(() {
+  //       _messages.add(ChatMessage(
+  //         sender:   sender,
+  //         fileName: label,
+  //         audioUrl: fileUrl,
+  //       ));
+  //       _nextFetchIdx = idx + 1;
+  //     });
+  //     _scrollToBottom();
+  //
+  //   } else if (res.statusCode == 404) {
+  //     // 還沒到這筆，等下次
+  //     return;
+  //   } else {
+  //     print('► 撈取錄音 idx=$idx 失敗，status=${res.statusCode}');
+  //   }
+  // }
 
   void _startTimer() {
     setState(() {
@@ -174,7 +304,10 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_remaining <= 1) {
         t.cancel();
-        setState(() => _roundActive = false);
+        setState(() {
+          _remaining   = 0;
+          _roundActive = false;
+        });
       } else {
         setState(() => _remaining--);
       }
@@ -192,8 +325,13 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
       });
     } else {
       final dir = await Directory.systemTemp.createTemp();
-      final file = '${dir.path}/${DateTime.now().millisecondsSinceEpoch}.aac';
-      await _recorder.startRecorder(toFile: file, codec: Codec.aacADTS);
+      // ← 改成 .wav
+      final file = '${dir.path}/${DateTime.now().millisecondsSinceEpoch}.wav';
+      // ← 改用 PCM16 WAV
+      await _recorder.startRecorder(
+        toFile: file,
+        codec: Codec.pcm16WAV,
+      );
       setState(() {
         _isRecording = true;
         _tempPath = null;
@@ -202,6 +340,51 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
       _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         setState(() => _recordSeconds++);
       });
+    }
+  }
+
+  Future<void> _play(String urlOrPath) async {
+    if (!_playerReady) return;
+    try {
+      String localPath;
+      Codec codec;
+
+      if (urlOrPath.startsWith('http')) {
+        final res = await http.get(Uri.parse(urlOrPath));
+        if (res.statusCode != 200) return;
+        final dir  = await getTemporaryDirectory();
+        final ext  = p.extension(urlOrPath).toLowerCase();
+        final file = File('${dir.path}/${DateTime.now().millisecondsSinceEpoch}$ext');
+        await file.writeAsBytes(res.bodyBytes, flush: true);
+
+        localPath = file.path;
+        codec     = (ext == '.wav') ? Codec.pcm16WAV : Codec.aacADTS;
+
+        // 增加 debug：檔案是否真的存在？大小？
+        final exists = await file.exists();
+        final len    = exists ? await file.length() : 0;
+        print('► downloaded to $localPath, exists=$exists, size=$len');
+
+      } else {
+        localPath = urlOrPath;
+        final ext = p.extension(localPath).toLowerCase();
+        codec     = (ext == '.wav') ? Codec.pcm16WAV : Codec.aacADTS;
+
+        final f = File(localPath);
+        final exists = await f.exists();
+        final len    = exists ? await f.length() : 0;
+        print('► playing local $localPath, exists=$exists, size=$len');
+      }
+
+      // 真正播放
+      await _player.startPlayer(
+        fromURI:    localPath,
+        codec:      codec,
+        whenFinished: () => setState(() {}),
+      );
+
+    } catch (e) {
+      print('play error $e');
     }
   }
 
@@ -221,13 +404,16 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
 
     final body = await res.stream.bytesToString();
     final js = jsonDecode(body) as Map<String, dynamic>;
-    final idx = js['recordIndex'].toString();
-    final fn  = js['file'] as String;
-    final url = '${widget.authService.baseUrl}/api/chat/rooms/'
-        '${widget.roomId}/groups/$_groupIdx/record/$idx/$fn';
+    // final idx = js['recordIndex'].toString();
+    final idxInt = js['recordIndex'] as int;
+    final url = '${baseUrl}/api/chat/rooms/${widget.roomId}/groups/$_groupIdx'
+        '/record/$idxInt';
+    // final fn  = js['file'] as String;
+    // final url = '${widget.authService.baseUrl}/api/chat/rooms/'
+    //     '${widget.roomId}/groups/$_groupIdx/record/$idxInt/$fn';
 
     final seconds = _recordSeconds;
-    final durationLabel = '${seconds ~/ 60}:"${(seconds % 60).toString().padLeft(2, '0')}″';
+    final durationLabel = '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}″';
 
     setState(() {
       _messages.add(ChatMessage(
@@ -235,32 +421,28 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
         fileName: durationLabel,
         audioUrl: url,
       ));
-      _tempPath = null;
+      // _tempPath = null;
+      _tempPath     = null;
+      _nextFetchIdx = idxInt + 1;
     });
     _scrollToBottom();
   }
 
-  Future<void> _play(String url) async {
-    if (!_playerReady) return;
-    try {
-      final res = await http.get(Uri.parse(url));
-      if (res.statusCode == 200) {
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/${DateTime.now().millisecondsSinceEpoch}.aac');
-        await file.writeAsBytes(res.bodyBytes, flush: true);
+  /// 直接從 WAV 檔頭計算時長，保證比 helper.duration 穩定
+  Future<Duration> _getWavDuration(String path) async {
+    final file = File(path).openSync(mode: FileMode.read);
+    // WAV header: byte 28‐32 是 byteRate，byte 40‐44 是 data chunk size
+    file.setPositionSync(28);
+    final brBytes = file.readSync(4);
+    final byteRate = ByteData.sublistView(brBytes).getUint32(0, Endian.little);
+    file.setPositionSync(40);
+    final dataBytes = file.readSync(4);
+    final dataSize = ByteData.sublistView(dataBytes).getUint32(0, Endian.little);
+    file.closeSync();
 
-        await _player.startPlayer(
-            fromURI: file.path,
-            codec: Codec.aacADTS,
-            whenFinished: () async {
-              await file.delete();
-              setState(() {});
-            }
-        );
-      }
-    } catch (e) {
-      print('play error $e');
-    }
+    if (byteRate == 0) return Duration.zero;
+    final seconds = dataSize / byteRate;
+    return Duration(milliseconds: (seconds * 1000).round());
   }
 
   void _scrollToBottom() {
@@ -290,26 +472,80 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
       backgroundColor: AppColors.primaryBG,
       body: Stack(
         children: [
-        // header 半透明
-        Opacity(
-        opacity: 0.1,
-        child: Image.asset(
-          'assets/images/chat_game_header.png',
-          width: w, height: 240, fit: BoxFit.cover,
-        ),
-      ),
-
-      // 白底
-      Positioned(
-        top: 200, left: 0, right: 0, bottom: 0,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-            BorderRadius.vertical(top: Radius.circular(30)),
+          // 1) 半透明 header（不變）
+          Opacity(
+            opacity: 0.1,
+            child: Image.asset(
+              'assets/images/chat_game_header.png',
+              width: w, height: 240, fit: BoxFit.cover,
+            ),
           ),
-        ),
-      ),
+
+          if (!_roundActive && _remaining == 0)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: Center(
+                  child: Container(
+                    width: 280,             // 卡片寬度
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset('assets/images/banana.png',
+                            width: 80, height: 80),
+                        const SizedBox(height: 12),
+                        Text(
+                          '完成！',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,  // 深綠
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.black),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).popUntil((r) => r.isFirst);
+                          },
+                          child: const Text(
+                            '回到首頁',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black,    // 黑色字
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // 3) 白底主區塊
+          Positioned(
+            top: 200, left: 0, right: 0, bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              ),
+            ),
+          ),
 
       // SafeArea 內文
       SafeArea(
@@ -322,11 +558,11 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
               // 返回＆標題
               Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: Color(0xFF777777)),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  // IconButton(
+                  //   icon: const Icon(Icons.arrow_back,
+                  //       color: Color(0xFF777777)),
+                  //   onPressed: () => Navigator.pop(context),
+                  // ),
                   const Spacer(),
                   const Column(
                     children: [
@@ -424,35 +660,43 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
-                  reverse: false, // true 會倒序
+                  reverse: false,
                   padding: const EdgeInsets.only(bottom: 120),
                   itemCount: _messages.length,
                   itemBuilder: (_, i) {
                     final m    = _messages[i];
                     final isMe = m.sender == _userName;
+
+                    // 顏色：自己藍底白字，對方灰底深字
+                    final bubbleColor = isMe ? AppColors.primaryLight : AppColors.grey100;
+                    final textColor   = isMe ? AppColors.primary        : AppColors.primary;
+
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Column(
-                        crossAxisAlignment:
-                        isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                        crossAxisAlignment: isMe
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
                         children: [
-                          // ★ 顯示發話者
+                          // 發話者名稱
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
                               m.sender,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isMe ? Colors.blueAccent : Colors.grey,
+                                color: isMe ? AppColors.primary : Colors.grey,
                               ),
                             ),
                           ),
-                          // 原本的訊息泡泡
+                          // 訊息泡泡
                           Container(
                             margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isMe ? AppColors.accentBlue : AppColors.grey100,
+                              color: bubbleColor,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -460,14 +704,12 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.play_arrow),
-                                  color: isMe ? Colors.white : AppColors.primary,
+                                  color: textColor,
                                   onPressed: () => _play(m.audioUrl),
                                 ),
                                 Text(
                                   m.fileName,
-                                  style: TextStyle(
-                                      color: isMe ? Colors.white : AppColors.primary
-                                  ),
+                                  style: TextStyle(color: textColor),
                                 ),
                               ],
                             ),
@@ -478,6 +720,63 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
                   },
                 ),
               ),
+              // Expanded(
+              //   child: ListView.builder(
+              //     controller: _scrollController,
+              //     reverse: false, // true 會倒序
+              //     padding: const EdgeInsets.only(bottom: 120),
+              //     itemCount: _messages.length,
+              //     itemBuilder: (_, i) {
+              //       final m    = _messages[i];
+              //       final isMe = m.sender == _userName;
+              //       return Align(
+              //         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+              //         child: Column(
+              //           crossAxisAlignment:
+              //           isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              //           children: [
+              //             // ★ 顯示發話者
+              //             Padding(
+              //               padding: const EdgeInsets.symmetric(horizontal: 16),
+              //               child: Text(
+              //                 m.sender,
+              //                 style: TextStyle(
+              //                   fontSize: 12,
+              //                   color: isMe ? Colors.blueAccent : Colors.grey,
+              //                 ),
+              //               ),
+              //             ),
+              //             // 原本的訊息泡泡
+              //             Container(
+              //               margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+              //               padding: const EdgeInsets.all(12),
+              //               decoration: BoxDecoration(
+              //                 color: isMe ? AppColors.accentBlue : AppColors.grey100,
+              //                 borderRadius: BorderRadius.circular(20),
+              //               ),
+              //               child: Row(
+              //                 mainAxisSize: MainAxisSize.min,
+              //                 children: [
+              //                   IconButton(
+              //                     icon: const Icon(Icons.play_arrow),
+              //                     color: isMe ? Colors.white : AppColors.primary,
+              //                     onPressed: () => _play(m.audioUrl),
+              //                   ),
+              //                   Text(
+              //                     m.fileName,
+              //                     style: TextStyle(
+              //                         color: isMe ? Colors.white : AppColors.primary
+              //                     ),
+              //                   ),
+              //                 ],
+              //               ),
+              //             ),
+              //           ],
+              //         ),
+              //       );
+              //     },
+              //   ),
+              // ),
 
               // ② 原本的錄音／上傳 UI
               if (_roundActive) ...[
@@ -552,7 +851,7 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
                         : FloatingActionButton(
                       backgroundColor: AppColors.primaryLight,
                       onPressed: _toggleRecording,
-                      child: const Icon(Icons.mic),
+                      child: const Icon(Icons.mic, color: Colors.white,),
                     )
                     ),
                   ),
@@ -560,7 +859,62 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
             ],
           ),
         ),
-      )],
+      ),
+          if (!_roundActive && _remaining == 0)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: Center(
+                  child: Container(
+                    width: 280,             // 卡片寬度
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBG,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset('assets/images/banana.png',
+                            width: 80, height: 80),
+                        const SizedBox(height: 12),
+                        Text(
+                          '完成！',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,  // 深綠
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBG,
+                            side: const BorderSide(color: Colors.black),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).popUntil((r) => r.isFirst);
+                          },
+                          child: const Text(
+                            '回到首頁',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black,    // 黑色字
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

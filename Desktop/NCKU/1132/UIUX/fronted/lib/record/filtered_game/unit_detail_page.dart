@@ -69,24 +69,43 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
           ? (record['results'] as List<dynamic>)
           : <dynamic>[];
 
+      // final List<QuestionCorrection> parsed = [];
+      // for (var res in resultsList) {
+      //   if (res['result'] == true) continue;
+      //
+      //   final qid = res['questionId']?.toString() ?? '';
+      //   final qObjIndex = questions.indexWhere(
+      //           (q) => q['id']?.toString() == qid);
+      //   if (qObjIndex == -1) continue;
+      //
+      //   final qObj = questions[qObjIndex];
+      //   parsed.add(QuestionCorrection(
+      //     questionIndex: qObjIndex,
+      //     question: (qObj['taibun'] ?? '').toString(),
+      //     tailou: (qObj['tailou'] ?? '').toString(),
+      //     translation: (qObj['zh'] ?? '').toString(),
+      //     audioUrl: (qObj['audioUrl'] ?? '').toString(),
+      //   ));
+      // }
       final List<QuestionCorrection> parsed = [];
-      for (var res in resultsList) {
-        if (res['result'] == true) continue;
+      for (int i = 0; i < questions.length; i++) {
+        final qObj = questions[i];
+        final qid = qObj['id']?.toString() ?? '';
+        final result = resultsList.firstWhere(
+              (res) => res['questionId']?.toString() == qid,
+          orElse: () => null,
+        );
 
-        final qid = res['questionId']?.toString() ?? '';
-        final qObjIndex = questions.indexWhere(
-                (q) => q['id']?.toString() == qid);
-        if (qObjIndex == -1) continue;
-
-        final qObj = questions[qObjIndex];
         parsed.add(QuestionCorrection(
-          questionIndex: qObjIndex,
+          questionIndex: i,
           question: (qObj['taibun'] ?? '').toString(),
           tailou: (qObj['tailou'] ?? '').toString(),
           translation: (qObj['zh'] ?? '').toString(),
           audioUrl: (qObj['audioUrl'] ?? '').toString(),
+          isCorrect: result?['result'] == true,
         ));
       }
+
 
       setState(() {
         corrections = parsed;
@@ -132,6 +151,7 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ─── 1. 自訂標題欄 ───
@@ -183,6 +203,7 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
               child: Row(
                 children: [
                   Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -222,7 +243,7 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
               ),
             ),
 
-            // ─── 3. 遊玩次數 ───
+            // // ─── 3. 遊玩次數 ───
             // Padding(
             //   padding: const EdgeInsets.symmetric(horizontal: 16),
             //   child: Text(
@@ -254,137 +275,155 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
                 itemCount: corrections.length,
                 itemBuilder: (context, idx) {
                   final c = corrections[idx];
+
                   return Padding(
                     padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6EF),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding:
-                            const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '第 ${c.questionIndex + 1} 題',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  c.question,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight:
-                                    FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  c.tailou,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  c.translation,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black45,
-                                  ),
-                                ),
-                              ],
+                    child: IntrinsicHeight(
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 160),
+                        // decoration: BoxDecoration(
+                        //   color: const Color(0xFFEFF6EF),
+                        //   borderRadius: BorderRadius.circular(20),
+                        //   boxShadow: [
+                        //     BoxShadow(
+                        //       color: Colors.black12,
+                        //       blurRadius: 4,
+                        //       offset: const Offset(0, 2),
+                        //     ),
+                        //   ],
+                        // ),
+                        decoration: BoxDecoration(
+                          color: c.isCorrect ? const Color(0xFFEFF6EF) : const Color(0xFFFFEBEE), // 綠底 or 紅底
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
                             ),
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: Container(
-                                margin:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDCEDE0),
-                                  borderRadius:
-                                  BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: IconButton(
-                                    icon: const Icon(
-                                      Icons.play_circle_fill,
-                                      size: 48,
-                                      color: Colors.black38,
+                          ],
+                        ),
+
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding:
+                              const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                              child: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '第 ${c.questionIndex + 1} 題',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black54,
                                     ),
-                                    onPressed: c.audioUrl.isEmpty
-                                        ? null
-                                        : () {
-                                      _playAudio(
-                                          c.audioUrl);
-                                    },
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    c.question,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight:
+                                      FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    c.tailou,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    c.translation,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black45,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Expanded(
+                            //   child: Center(
+                            //     child: Container(
+                            //       margin:
+                            //       const EdgeInsets.symmetric(horizontal: 16),
+                            //       decoration: BoxDecoration(
+                            //         color: const Color(0xFFDCEDE0),
+                            //         borderRadius:
+                            //         BorderRadius.circular(16),
+                            //       ),
+                            //       child: Center(
+                            //         child: IconButton(
+                            //           icon: const Icon(
+                            //             Icons.play_circle_fill,
+                            //             size: 48,
+                            //             color: Colors.black38,
+                            //           ),
+                            //           onPressed: c.audioUrl.isEmpty
+                            //               ? null
+                            //               : () {
+                            //             _playAudio(
+                            //                 c.audioUrl);
+                            //           },
+                            //         ),
+                            //       ),
+                            //     ),
+                            //   ),
+                            // ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                  16, 8, 16, 16),
+                              child: ElevatedButton.icon(
+                                icon: const Icon(
+                                  Icons.volume_up,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  '正確發音',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  minimumSize:
+                                  const Size.fromHeight(48),
+                                  backgroundColor:
+                                  AppColors.primaryDark,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                    BorderRadius.circular(24),
                                   ),
                                 ),
+                                onPressed: c.audioUrl.isEmpty
+                                    ? null
+                                    : () {
+                                  _playAudio(
+                                      c.audioUrl);
+                                },
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                                16, 8, 16, 16),
-                            child: ElevatedButton.icon(
-                              icon: const Icon(
-                                Icons.volume_up,
-                                color: Colors.white,
-                              ),
-                              label: const Text(
-                                '正確發音',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                minimumSize:
-                                const Size.fromHeight(48),
-                                backgroundColor:
-                                AppColors.primaryDark,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(24),
-                                ),
-                              ),
-                              onPressed: c.audioUrl.isEmpty
-                                  ? null
-                                  : () {
-                                _playAudio(
-                                    c.audioUrl);
-                              },
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );
+
                 },
               )),
             ),
 
-            const SizedBox(height: 60),
+            const SizedBox(height: 100),
 
             // ─── 5. 底部「回到大廳」按鈕 ───
             Padding(
@@ -408,12 +447,14 @@ class _UnitDetailPageState extends State<UnitDetailPage> {
   }
 }
 
+
 class QuestionCorrection {
   final int questionIndex;
   final String question;
   final String tailou;
   final String translation;
   final String audioUrl;
+  final bool isCorrect;
 
   QuestionCorrection({
     required this.questionIndex,
@@ -421,5 +462,6 @@ class QuestionCorrection {
     required this.tailou,
     required this.translation,
     required this.audioUrl,
+    required this.isCorrect,
   });
 }

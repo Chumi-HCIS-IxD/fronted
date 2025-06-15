@@ -102,17 +102,17 @@ class _MatchResultPageState extends State<MatchResultPage> {
       final roomData = json.decode(res.body);
       final memberUids = List<String>.from(roomData['members'] ?? []);
       _allPlayers = [];
-      for (String uid in memberUids) {
-        final userProfile = await auth.fetchUserProfileByUid(uid);
-        String name = userProfile?['name'] ?? uid;
-        _allPlayers.add(PlayerInfo(uid: uid, name: name));
-      }
       // for (String uid in memberUids) {
-      //   final auth = AuthApiService(baseUrl: baseUrl);
       //   final userProfile = await auth.fetchUserProfileByUid(uid);
-      //   String name = userProfile?['name']?.toString() ?? uid;
+      //   String name = userProfile?['name'] ?? uid;
       //   _allPlayers.add(PlayerInfo(uid: uid, name: name));
       // }
+      for (String uid in memberUids) {
+        final auth = AuthApiService(baseUrl: baseUrl);
+        final userProfile = await auth.fetchUserProfileByUid(uid);
+        String name = userProfile?['name']?.toString() ?? uid;
+        _allPlayers.add(PlayerInfo(uid: uid, name: name));
+      }
       // 加入老師（如果還沒）
       if (!_allPlayers.any((p) => p.uid == widget.hostUid)) {
         final userProfile = await auth.fetchUserProfileByUid(widget.hostUid);
@@ -217,31 +217,31 @@ class _MatchResultPageState extends State<MatchResultPage> {
     }
   }
 
-  Future<void> _startChat() async {
-    if (_myPartnerName == '無配對對象') return;
-
-    final token = await getToken();   // ← 很可能回傳 null
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty)
-        'Authorization': 'Bearer $token',     // 只有 token 存在才塞
-    };
-
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/chat/rooms/${widget.roomId}/start'),
-      headers: headers,
-    );
-
-    debugPrint('START → ${res.statusCode}  ${res.body}');
-
-    if (res.statusCode == 200) {
-      _navigateToChat();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('啟動失敗（${res.statusCode}）')),
-      );
-    }
-  }
+  // Future<void> _startChat() async {
+  //   if (_myPartnerName == '無配對對象') return;
+  //
+  //   final token = await getToken();   // ← 很可能回傳 null
+  //   final headers = <String, String>{
+  //     'Content-Type': 'application/json',
+  //     if (token != null && token.isNotEmpty)
+  //       'Authorization': 'Bearer $token',     // 只有 token 存在才塞
+  //   };
+  //
+  //   final res = await http.post(
+  //     Uri.parse('$baseUrl/api/chat/rooms/${widget.roomId}/start'),
+  //     headers: headers,
+  //   );
+  //
+  //   debugPrint('START → ${res.statusCode}  ${res.body}');
+  //
+  //   if (res.statusCode == 200) {
+  //     _navigateToChat();
+  //   } else {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('啟動失敗（${res.statusCode}）')),
+  //     );
+  //   }
+  // }
 
   void _navigateToChat() {
     Navigator.of(context).pushReplacement(
@@ -362,7 +362,7 @@ class _MatchResultPageState extends State<MatchResultPage> {
                   const Spacer(),
                   Center(
                     child: ElevatedButton(
-                      onPressed: _startChat,
+                      onPressed: _navigateToChat,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(

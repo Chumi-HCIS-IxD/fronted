@@ -94,6 +94,8 @@ flutter:
     - assets/images/chat.png
     - assets/images/papaya_header.png
     - assets/images/chat_game_header.png
+    - assets/images/banana.png
+    - assets/audio/bgm.mp3
 
 
   # To add assets to your application, add an assets section, like this:

@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'api.dart';
 import 'room_page.dart';
+import 'dart:convert';
+
 
 class CreateRoomPage extends StatefulWidget {
   final String hostUid;
@@ -162,26 +163,26 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _sets.length,
-              itemBuilder: (_, i) {
-                final set = _sets[i];
-                return Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    title: Text(set.name),
-                    subtitle: set.questionCount > 0
-                        ? Text('共 ${set.questionCount} 題')
-                        : null,
-                    trailing: ElevatedButton(
-                      onPressed: () => _onPressedCreate(set.id),
-                      child: const Text('創建房間'),
-                    ),
-                  ),
-                );
-              },
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: _sets.length,
+        itemBuilder: (_, i) {
+          final set = _sets[i];
+          return Card(
+            margin:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ListTile(
+              title: Text(set.name),
+              subtitle: set.questionCount > 0
+                  ? Text('共 ${set.questionCount} 題')
+                  : null,
+              trailing: ElevatedButton(
+                onPressed: () => _onPressedCreate(set.id),
+                child: const Text('創建房間'),
+              ),
             ),
+          );
+        },
+      ),
     );
   }
 }
@@ -193,11 +194,11 @@ class QuestionSet {
   QuestionSet(this.id, this.name, this.questionCount);
 
   factory QuestionSet.fromJson(Map<String, dynamic> j) => QuestionSet(
-        j['id'] as String,
-        j['name'] as String,
-        (j['count'] as int?) ??
-            (j['length'] as int?) ??
-            (j['questionsCount'] as int?) ??
-            0,
-      );
+    j['id'] as String,
+    j['name'] as String,
+    (j['count'] as int?) ??
+        (j['length'] as int?) ??
+        (j['questionsCount'] as int?) ??
+        0,
+  );
 }
