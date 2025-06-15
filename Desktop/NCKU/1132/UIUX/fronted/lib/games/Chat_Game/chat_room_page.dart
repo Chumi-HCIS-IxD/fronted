@@ -767,42 +767,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
-  /// 更新參與者列表（從輪詢中分離出來）
-  Future<void> _updateParticipantsList(Map<String, dynamic> roomData) async {
-    try {
-      final token = await getToken();
+  // lib/games/Chat_Game/chat_room_page.dart
 
-      // 更新玩家列表
-      final raw = (roomData['players'] as List<dynamic>).cast<String>();
-      List<String> newPlayersName = [];
-
-      for (var uid in raw) {
-        final r3 = await http.get(
-          Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
-          headers: {'Authorization': 'Bearer $token'},
-        );
-        if (r3.statusCode == 200) {
-          final m = json.decode(r3.body) as Map<String, dynamic>;
-          newPlayersName.add(m['name'] as String? ?? uid);
-        } else {
-          newPlayersName.add(uid);
-        }
-      }
-
-      // 只在列表真的有變化時才更新 UI
-      if (newPlayersName.length != playersName.length ||
-          !const DeepCollectionEquality().equals(newPlayersName, playersName)) {
-        if (mounted) {
-          setState(() {
-            playersName = newPlayersName;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Update participants error: $e');
-    }
-  }
-
+  /// 載入房間（老師 & 學生共用）
   Future<void> _loadRoom() async {
     setState(() => _loading = true);
     try {
@@ -811,27 +778,30 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         Uri.parse('$baseUrl/api/chat/rooms/${widget.roomId}'),
         headers: {'Authorization': 'Bearer $token'},
       );
+
       if (res.statusCode == 200) {
         final d = json.decode(res.body) as Map<String, dynamic>;
 
-        // 解析 host
+        // 1️⃣ 解析 host
         _hostUid = d['host'] as String;
-        final hostUid = d['host'] as String;
-        final r2 = await http.get(
-          Uri.parse('$baseUrl/api/users/profile?uid=$hostUid'),
-          headers: {'Authorization': 'Bearer $token'},
-        );
-        if (r2.statusCode == 200) {
-          final m = json.decode(r2.body) as Map<String, dynamic>;
-          hostName = m['name'] as String? ?? hostUid;
-        } else {
-          hostName = hostUid;
+        {
+          final r2 = await http.get(
+            Uri.parse('$baseUrl/api/users/profile?uid=$_hostUid'),
+            headers: {'Authorization': 'Bearer $token'},
+          );
+          if (r2.statusCode == 200) {
+            final m = json.decode(r2.body) as Map<String, dynamic>;
+            hostName = m['name'] as String? ?? _hostUid;
+          } else {
+            hostName = _hostUid;
+          }
         }
 
-        // 解析 players
+        // 2️⃣ 解析 players（跳過 hostUid）
         final raw = (d['players'] as List<dynamic>).cast<String>();
         playersName = [];
         for (var uid in raw) {
+          if (uid == _hostUid) continue;
           final r3 = await http.get(
             Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
             headers: {'Authorization': 'Bearer $token'},
@@ -844,10 +814,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           }
         }
 
-        // 解析房間狀態
+        // 3️⃣ 解析房間狀態
         final statusStr = d['status'] as String?;
         _started = d['started'] == true;
-
         if (statusStr == 'matching') {
           _status = RoomStatus.matching;
         } else if (statusStr == 'active' || _started) {
@@ -856,25 +825,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           _status = RoomStatus.waiting;
         }
 
-        // createdAt (若後端有回傳 timestamp)
+        // 4️⃣ 其他欄位
         if (d.containsKey('createdAt')) {
-          final raw = d['createdAt'];
-          if (raw is int) {
-            createdAt = DateTime.fromMillisecondsSinceEpoch(raw);
-          } else if (raw is String) {
+          final rawTs = d['createdAt'];
+          if (rawTs is int) {
+            createdAt = DateTime.fromMillisecondsSinceEpoch(rawTs);
+          } else if (rawTs is String) {
             try {
-              createdAt = DateTime.parse(raw);
+              createdAt = DateTime.parse(rawTs);
             } catch (_) {
-              try {
-                createdAt = HttpDate.parse(raw);
-              } catch (e) {
-                debugPrint('createdAt parse error: $e');
-              }
+              createdAt = HttpDate.parse(rawTs);
             }
           }
         }
-
-        // unitId
         unitId = d['unitId'] as String? ?? '';
       }
     } catch (e) {
@@ -883,6 +846,157 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  /// 更新參與者列表（學生端輪詢 & 老師端只更新列表都可共用）
+  Future<void> _updateParticipantsList(Map<String, dynamic> roomData) async {
+    try {
+      final token = await getToken();
+      final raw = (roomData['players'] as List<dynamic>).cast<String>();
+      List<String> newPlayers = [];
+
+      for (var uid in raw) {
+        if (uid == _hostUid) continue;
+        final r3 = await http.get(
+          Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+          headers: {'Authorization': 'Bearer $token'},
+        );
+        if (r3.statusCode == 200) {
+          final m = json.decode(r3.body) as Map<String, dynamic>;
+          newPlayers.add(m['name'] as String? ?? uid);
+        } else {
+          newPlayers.add(uid);
+        }
+      }
+
+      if (newPlayers.length != playersName.length ||
+          !const DeepCollectionEquality().equals(newPlayers, playersName)) {
+        if (mounted) {
+          setState(() {
+            playersName = newPlayers;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Update participants error: $e');
+    }
+  }
+
+  // /// 更新參與者列表（從輪詢中分離出來）
+  // Future<void> _updateParticipantsList(Map<String, dynamic> roomData) async {
+  //   try {
+  //     final token = await getToken();
+  //
+  //     // 更新玩家列表
+  //     final raw = (roomData['players'] as List<dynamic>).cast<String>();
+  //     List<String> newPlayersName = [];
+  //
+  //     for (var uid in raw) {
+  //       final r3 = await http.get(
+  //         Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+  //         headers: {'Authorization': 'Bearer $token'},
+  //       );
+  //       if (r3.statusCode == 200) {
+  //         final m = json.decode(r3.body) as Map<String, dynamic>;
+  //         newPlayersName.add(m['name'] as String? ?? uid);
+  //       } else {
+  //         newPlayersName.add(uid);
+  //       }
+  //     }
+  //
+  //     // 只在列表真的有變化時才更新 UI
+  //     if (newPlayersName.length != playersName.length ||
+  //         !const DeepCollectionEquality().equals(newPlayersName, playersName)) {
+  //       if (mounted) {
+  //         setState(() {
+  //           playersName = newPlayersName;
+  //         });
+  //       }
+  //     }
+  //   } catch (e) {
+  //     debugPrint('Update participants error: $e');
+  //   }
+  // }
+
+  // Future<void> _loadRoom() async {
+  //   setState(() => _loading = true);
+  //   try {
+  //     final token = await getToken();
+  //     final res = await http.get(
+  //       Uri.parse('$baseUrl/api/chat/rooms/${widget.roomId}'),
+  //       headers: {'Authorization': 'Bearer $token'},
+  //     );
+  //     if (res.statusCode == 200) {
+  //       final d = json.decode(res.body) as Map<String, dynamic>;
+  //
+  //       // 解析 host
+  //       _hostUid = d['host'] as String;
+  //       final hostUid = d['host'] as String;
+  //       final r2 = await http.get(
+  //         Uri.parse('$baseUrl/api/users/profile?uid=$hostUid'),
+  //         headers: {'Authorization': 'Bearer $token'},
+  //       );
+  //       if (r2.statusCode == 200) {
+  //         final m = json.decode(r2.body) as Map<String, dynamic>;
+  //         hostName = m['name'] as String? ?? hostUid;
+  //       } else {
+  //         hostName = hostUid;
+  //       }
+  //
+  //       // 解析 players
+  //       final raw = (d['players'] as List<dynamic>).cast<String>();
+  //       playersName = [];
+  //       for (var uid in raw) {
+  //         final r3 = await http.get(
+  //           Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+  //           headers: {'Authorization': 'Bearer $token'},
+  //         );
+  //         if (r3.statusCode == 200) {
+  //           final m = json.decode(r3.body) as Map<String, dynamic>;
+  //           playersName.add(m['name'] as String? ?? uid);
+  //         } else {
+  //           playersName.add(uid);
+  //         }
+  //       }
+  //
+  //       // 解析房間狀態
+  //       final statusStr = d['status'] as String?;
+  //       _started = d['started'] == true;
+  //
+  //       if (statusStr == 'matching') {
+  //         _status = RoomStatus.matching;
+  //       } else if (statusStr == 'active' || _started) {
+  //         _status = RoomStatus.started;
+  //       } else {
+  //         _status = RoomStatus.waiting;
+  //       }
+  //
+  //       // createdAt (若後端有回傳 timestamp)
+  //       if (d.containsKey('createdAt')) {
+  //         final raw = d['createdAt'];
+  //         if (raw is int) {
+  //           createdAt = DateTime.fromMillisecondsSinceEpoch(raw);
+  //         } else if (raw is String) {
+  //           try {
+  //             createdAt = DateTime.parse(raw);
+  //           } catch (_) {
+  //             try {
+  //               createdAt = HttpDate.parse(raw);
+  //             } catch (e) {
+  //               debugPrint('createdAt parse error: $e');
+  //             }
+  //           }
+  //         }
+  //       }
+  //
+  //       // unitId
+  //       unitId = d['unitId'] as String? ?? '';
+  //     }
+  //   } catch (e) {
+  //     debugPrint('loadRoom exception: $e');
+  //   } finally {
+  //     if (mounted) setState(() => _loading = false);
+  //   }
+  // }
 
   @override
   void dispose() {

@@ -428,21 +428,54 @@ class _ChatGamePlayPageState extends State<ChatGamePlayPage> {
     _scrollToBottom();
   }
 
-  /// 直接從 WAV 檔頭計算時長，保證比 helper.duration 穩定
+  /// 解析 WAV 檔，從 fmt chunk 取 byteRate，從 data chunk 取 dataSize
   Future<Duration> _getWavDuration(String path) async {
-    final file = File(path).openSync(mode: FileMode.read);
-    // WAV header: byte 28‐32 是 byteRate，byte 40‐44 是 data chunk size
-    file.setPositionSync(28);
-    final brBytes = file.readSync(4);
-    final byteRate = ByteData.sublistView(brBytes).getUint32(0, Endian.little);
-    file.setPositionSync(40);
-    final dataBytes = file.readSync(4);
-    final dataSize = ByteData.sublistView(dataBytes).getUint32(0, Endian.little);
-    file.closeSync();
+    final raf = await File(path).open();
+    try {
+      // 1) 讀前 12 bytes: "RIFF" + fileSize + "WAVE"
+      final riffHeader = await raf.read(12);
+      final riffId = String.fromCharCodes(riffHeader.sublist(0, 4));
+      final waveId = String.fromCharCodes(riffHeader.sublist(8, 12));
+      if (riffId != 'RIFF' || waveId != 'WAVE') {
+        return Duration.zero; // 不是標準 WAV
+      }
 
-    if (byteRate == 0) return Duration.zero;
-    final seconds = dataSize / byteRate;
-    return Duration(milliseconds: (seconds * 1000).round());
+      int? byteRate;
+      int? dataSize;
+
+      // 2) 走訪所有 chunk
+      while (true) {
+        final hdr = await raf.read(8);
+        if (hdr.length < 8) break;
+        final id = String.fromCharCodes(hdr.sublist(0, 4));
+        final size = ByteData.sublistView(hdr, 4, 8)
+            .getUint32(0, Endian.little);
+
+        if (id == 'fmt ') {
+          // fmt chunk: audio format (2), channels (2), sampleRate (4), byteRate (4), ...
+          final fmt = await raf.read(size);
+          // byteRate = ByteData.sublistView(fmt, 4, 8)
+          //     .getUint32(0, Endian.little);
+          if (fmt.length >= 12) {
+            byteRate = ByteData.sublistView(fmt, 8, 12).getUint32(0, Endian.little);
+          }
+        } else if (id == 'data') {
+          dataSize = size;
+          break;
+        } else {
+          // 跳過這個 chunk
+          await raf.setPosition(await raf.position() + size);
+        }
+      }
+
+      if (byteRate == null || dataSize == null || byteRate == 0) {
+        return Duration.zero;
+      }
+      final seconds = dataSize / byteRate;
+      return Duration(milliseconds: (seconds * 1000).round());
+    } finally {
+      await raf.close();
+    }
   }
 
   void _scrollToBottom() {

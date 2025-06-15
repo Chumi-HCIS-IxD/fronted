@@ -1,6 +1,7 @@
 // lib/games/Chat_Game/match_result_page.dart
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -102,6 +103,7 @@ class _MatchResultPageState extends State<MatchResultPage> {
       final roomData = json.decode(res.body);
       final memberUids = List<String>.from(roomData['members'] ?? []);
       _allPlayers = [];
+
       // for (String uid in memberUids) {
       //   final userProfile = await auth.fetchUserProfileByUid(uid);
       //   String name = userProfile?['name'] ?? uid;
@@ -113,15 +115,17 @@ class _MatchResultPageState extends State<MatchResultPage> {
         String name = userProfile?['name']?.toString() ?? uid;
         _allPlayers.add(PlayerInfo(uid: uid, name: name));
       }
-      // 加入老師（如果還沒）
-      if (!_allPlayers.any((p) => p.uid == widget.hostUid)) {
-        final userProfile = await auth.fetchUserProfileByUid(widget.hostUid);
-        final hostName = userProfile?['name'] ?? widget.hostUid;
-        _allPlayers.add(PlayerInfo(uid: widget.hostUid, name: hostName));
-      }
-      // if (!_allPlayers.any((p) => p.name == widget.hostName)) {
-      //   _allPlayers.add(PlayerInfo(uid: 'teacher', name: widget.hostName));
+
+      // // 加入老師（如果還沒）
+
+      // if (!_allPlayers.any((p) => p.uid == widget.hostUid)) {
+      //   final userProfile = await auth.fetchUserProfileByUid(widget.hostUid);
+      //   final hostName = userProfile?['name'] ?? widget.hostUid;
+      //   _allPlayers.add(PlayerInfo(uid: widget.hostUid, name: hostName));
       // }
+      if (!_allPlayers.any((p) => p.name == widget.hostName)) {
+        _allPlayers.add(PlayerInfo(uid: 'teacher', name: widget.hostName));
+      }
     }
   }
 
