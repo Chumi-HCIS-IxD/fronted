@@ -185,9 +185,16 @@ class _FilterGamePageState extends State<FilterGamePage> {
   @override
   Widget build(BuildContext context) {
     final correctCount = _results.where((r) => r['correct'] == true).length;
-    final imagePath = correctCount > 0 && correctCount <= _imagePaths.length
-        ? _imagePaths[correctCount - 1]
+
+    final imagePath = correctCount > 0
+        ? _imagePaths[
+    correctCount <= _imagePaths.length ? correctCount - 1 : _imagePaths.length - 1
+    ]
         : 'assets/images/star.png';
+
+    // final imagePath = correctCount > 0 && correctCount <= _imagePaths.length
+    //     ? _imagePaths[correctCount - 1]
+    //     : 'assets/images/star.png';
 
     const kPrimaryGreen = Color(0xFF2E7D32);
     const kAccentGreen = Color(0xFF4CAF50);
@@ -209,7 +216,28 @@ class _FilterGamePageState extends State<FilterGamePage> {
           elevation: 0,
           leading: const BackButton(color: Colors.white),
           centerTitle: true,
-          title: const Text('濾鏡小遊戲', style: TextStyle(fontWeight: FontWeight.bold)),
+          // title: const Text('濾鏡小遊戲', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '練說話',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Lián kóng-uē',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
         ),
         body: Column(
           children: [
@@ -355,8 +383,29 @@ class _FilterGamePageState extends State<FilterGamePage> {
         elevation: 0,
         leading: const BackButton(color: Colors.white),
         centerTitle: true,
-        title: const Text('濾鏡小遊戲',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        // title: const Text('練說話',
+        //     style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '練說話',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Lián kóng-uē',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(20),
           child: Padding(
@@ -457,7 +506,8 @@ class _FilterGamePageState extends State<FilterGamePage> {
                               ),
                             ),
                             // 疊加濾鏡圖片（根據答對題數）
-                            if (correctCount > 0 && correctCount <= _imagePaths.length)
+                            if (correctCount > 0)
+                            // if (correctCount > 0 && correctCount <= _imagePaths.length)
                               Positioned.fill(
                                 child: Image.asset(
                                   imagePath,
