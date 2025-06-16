@@ -338,12 +338,67 @@ class AuthApiService {
       return false;
     }
   }
+  // Future<dynamic> get(String endpoint) async {
+  //   final response = await http.get(Uri.parse('$baseUrl$endpoint'));
+  //   if (response.statusCode == 200) {
+  //     return jsonDecode(response.body);
+  //   } else {
+  //     throw Exception('GET 請求失敗: ${response.statusCode}');
+  //   }
+  // }
+
   Future<dynamic> get(String endpoint) async {
-    final response = await http.get(Uri.parse('$baseUrl$endpoint'));
+    final token = await getAuthToken();
+
+    // === ➊ ➜ 新增「例外白名單」判斷 ===
+    final isSpeakApi = endpoint.startsWith('/api/speak');
+
+    // === ➋ ➜ 只有在需要驗證又拿不到 token 時才丟錯 ===
+    if (!isSpeakApi && (token == null || token.isEmpty)) {
+      throw Exception('找不到 token，請先登入');
+    }
+
+    final url = '$baseUrl$endpoint';
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        // ➌ ➜ 有 token 才帶，避免 null 造成 header value 炸掉
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    );
+
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
+    }
+    throw Exception('GET 失敗: status=${response.statusCode}, body=${response.body}');
+  }
+
+  Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
+  }
+
+  Future<String?> getToken() => getAuthToken();
+
+  Future<String?> getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+  Future<Map<String, dynamic>?> fetchUserProfileByUid(String uid) async {
+    final token = await getAuthToken();
+    if (token == null) return null;
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/users/profile?uid=$uid'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',    // ← 用剛剛存的 token
+      },
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
     } else {
-      throw Exception('GET 請求失敗: ${response.statusCode}');
+      return null;
     }
   }
 }

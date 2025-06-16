@@ -79,7 +79,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _playBgm() async {
     try {
-      await _bgmPlayer.setAsset('assets/audio/bgm.mp3');
+      await _bgmPlayer.setAsset('assets/audio/bgm2.mp3');
       _bgmPlayer.setLoopMode(LoopMode.all);
       _bgmPlayer.play();
     } catch (e) {
@@ -151,6 +151,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         onTap: (i) async {
           try {
             await _sePlayer.setAsset('assets/audio/page_turn.wav');
+            await _sePlayer.setVolume(0.2); // 小聲一點
             await _sePlayer.play();
           } catch (_) {}
           setState(() => _currentIndex = i);

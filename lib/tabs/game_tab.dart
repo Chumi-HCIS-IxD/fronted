@@ -173,7 +173,7 @@ class _GameTabState extends State<GameTab> {
               } else if (idx == 2) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => ChatRoomSelectionPage(authService: _authService)),
+                  MaterialPageRoute(builder: (_) => ChatRoomSelectionPage()),
                 );
                 // else {
                 //   ScaffoldMessenger.of(context).showSnackBar(
