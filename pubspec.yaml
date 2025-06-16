@@ -97,6 +97,7 @@ flutter:
     - assets/audio/bgm2.mp3
     - assets/audio/page_turn.wav
     - assets/audio/
+    - assets/images/banana.png
 
 
 
